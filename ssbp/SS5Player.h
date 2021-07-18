@@ -127,18 +127,6 @@ extern void get_uv_rotation(float *u, float *v, float cu, float cv, float deg);
 #define SS_SAFE_RETAIN(p)            do { if(p) { (p)->retain(); } } while(0)
 #define SS_BREAK_IF(cond)            if(cond) break
 
-#ifdef _DEBUG
-    #define SSLOG(...)       do {} while (0)//printf(__VA_ARGS__)
-    #define SS_ASSERT(cond)    assert(cond)
-    #define SS_ASSERT2(cond, msg) SS_ASSERT(cond)
-    #define SSLOGERROR(format,...)  do {} while (0)
-#else
-    #define SSLOG(...)       do {} while (0)//printf(__VA_ARGS__)
-    #define SS_ASSERT(cond)
-    #define SS_ASSERT2(cond, msg) ((void)(cond))
-    #define SSLOGERROR(format,...)  do {} while (0)
-#endif
-
 
 /**
 * State

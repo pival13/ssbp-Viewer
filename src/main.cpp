@@ -20,6 +20,13 @@
 #include "quad.h"
 #include "sprite.h"
 
+#ifndef WIN_WIDTH
+#define WIN_WIDTH 1200
+#endif
+#ifndef WIN_HEIGHT
+#define WIN_HEIGHT 1024
+#endif
+
 Sprite sprite;
 Quad background; // the background quad/plane; has its own shader
 
@@ -37,6 +44,7 @@ void drop_callback(GLFWwindow* window, int count, const char** paths);
 void handleEvents(GLFWwindow* window);
 void draw(GLFWwindow* window);
 GLFWwindow *initOpenGL();
+std::string replace(const std::string &src, const std::string &what, const std::string &repl);
 
 float aspect_ratio = WIN_WIDTH / WIN_HEIGHT;
 float frame_rate = 60.0f;
@@ -56,7 +64,7 @@ std::string help = // hotkeys
 
 int main(int argc, char* argv[]) {
     sprite.dir = argv[0];
-    sprite.dir = sprite.dir.substr(0, sprite.dir.find_last_of("/\\") + 1);
+    sprite.dir = replace(sprite.dir, "\\", "/").substr(0, sprite.dir.rfind("/") + 1);
 
     std::vector<std::string> shader_name_list{
         sprite.dir + "shaders/sprite.vertex",
@@ -87,7 +95,7 @@ int main(int argc, char* argv[]) {
         sprite.resman = ss::ResourceManager::getInstance();
         sprite.ssPlayer = ss::Player::create(sprite.resman);
 
-        sprite.file_name = sprite.resman->addData(sprite.file_name);
+        sprite.file_name = sprite.resman->addData(replace(sprite.file_name, "\\", "/"));
         sprite.ssPlayer->setData(sprite.file_name, &sprite.animation_list);
         sprite.ssPlayer->play(sprite.animation_list[0], 1);
         sprite.ssPlayer->setGameFPS(frame_rate);
@@ -112,7 +120,7 @@ int main(int argc, char* argv[]) {
 void draw(GLFWwindow* window) {
     // calc delta time
     static GLfloat lastTime = 0.0f;
-    GLfloat currentTime = glfwGetTime();
+    GLfloat currentTime = float(glfwGetTime());
     GLfloat deltaTime = currentTime - lastTime;
     lastTime = currentTime;
 
@@ -124,7 +132,7 @@ void draw(GLFWwindow* window) {
     background.shader.setTexture2D("u_Texture", background.texture->id);
     background.shader.setVec2("flip", 1.0f, 1.0f);
     background.shader.setBool("u_UseTexture", background.texture->loaded);
-    background.shader.setFloat("u_Time", glfwGetTime());
+    background.shader.setFloat("u_Time", currentTime);
     background.draw();
 
     sprite.shader.use();
@@ -136,7 +144,7 @@ void draw(GLFWwindow* window) {
     view = glm::scale(view, scale*glm::vec3(1.0f, aspect_ratio, 1.0f));
     sprite.shader.setMat4("u_View", glm::value_ptr(view));
 
-    sprite.shader.setFloat("u_Time", glfwGetTime());
+    sprite.shader.setFloat("u_Time", currentTime);
 
     //glfw: swap buffers and poll IO events (keys pressed/releaed, mouse moved etc.)
     glfwSwapBuffers(window);
@@ -160,23 +168,22 @@ GLFWwindow *initOpenGL()
     glfwSetScrollCallback(window, scroll_callback);
     glfwSetDropCallback(window, drop_callback);
     glfwSetWindowSizeLimits(window, WIN_WIDTH, WIN_HEIGHT, GLFW_DONT_CARE, GLFW_DONT_CARE);
-    glfwSwapInterval(frame_rate / 60); //test //0 = unlocked frame rate; 1=60fps; 2=30fps; 3=20fps
+    glfwSwapInterval(60 / int(frame_rate)); //test //0 = unlocked frame rate; 1=60fps; 2=30fps; 3=20fps
     glfwSetInputMode(window, GLFW_STICKY_MOUSE_BUTTONS, GL_TRUE); // test
 
     // glad: load all OpenGL function pointers
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
         throw std::runtime_error("Failed to initialize GLAD");
     glEnable(GL_BLEND);
-    glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
     return window;
 }
 
 void zoom(double delta) {
-    double z = delta*scale.y*2.0f;
-    double sign = (scale.x > 0.0f) ? 1.0f : ((scale.x < 0.0f) ? -1.0f : 0.0f);
+    float z = float(delta)*scale.y*2.0f;
+    float sign = (scale.x > 0.0f) ? 1.0f : ((scale.x < 0.0f) ? -1.0f : 0.0f);
     scale += glm::vec3(z*sign, z, 0.0f);
-    double threshold = 0.001f;
+    float threshold = 0.001f;
     if (scale.y < threshold) {
         scale.x = threshold * sign;
         scale.y = threshold;
@@ -372,12 +379,12 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 
             // Remove empty borders
             Magick::Geometry area = img.boundingBox();
-            int w =  std::ceil((area.width() + 10) / 10) * 10;
-            int h = std::ceil((area.height() + 10) / 10) * 10;
+            int w = int(std::ceil((area.width() + 10) / 10) * 10);
+            int h = int(std::ceil((area.height() + 10) / 10) * 10);
             Magick::Geometry geo = Magick::Geometry(
                 w, h,
-                std::ceil(area.xOff() - (w - area.width()) / 2),
-                std::ceil(area.yOff() - (h - area.height()) / 2)
+                ssize_t(std::ceil(area.xOff() - (w - area.width()) / 2)),
+                ssize_t(std::ceil(area.yOff() - (h - area.height()) / 2))
             );
             img.crop(geo);
 
@@ -449,4 +456,14 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     aspect_ratio = float(width) / height;
     glViewport(0, 0, width, height);
     draw(window);
+}
+
+std::string replace(const std::string &src, const std::string &what, const std::string &repl)
+{
+    std::string cp = src;
+    while (true) {
+        const size_t pos = cp.find(what);
+        if (pos == cp.npos) return cp;
+        cp = cp.replace(pos, what.size(), repl);
+    }
 }

@@ -24,13 +24,19 @@ find_package(ImageMagick COMPONENTS MagickWand REQUIRED)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-file(GLOB SOURCES
+set(SOURCES
     src/glad.c
-    ssbp/Common/*/*.cpp
-    ssbp/SS5PlayerPlatform.cpp
     src/shader.cpp
     src/sprite.cpp
     src/texture.cpp
+
+    ssbp/SS5Player.cpp
+    ssbp/SS5PlayerPlatform.cpp
+    ssbp/Common/Animator/ssplayer_effect.cpp
+    ssbp/Common/Animator/ssplayer_effectfunction.cpp
+    ssbp/Common/Animator/ssplayer_matrix.cpp
+    ssbp/Common/Animator/ssplayer_PartState.cpp
+    ssbp/Common/Helper/DebugPrint.cpp
 )
 
 include_directories(

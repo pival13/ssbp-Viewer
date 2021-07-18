@@ -130,7 +130,12 @@ namespace ss
         sprite.shader.setMat4("u_Transform", glm::value_ptr(mat));
         sprite.shader.setFloat("u_Opacity", float(state.opacity) / 255.0f);
         sprite.shader.setBool("u_UseTexture", sprite.textures[state.texture.handle - 1]->loaded);
+
         sprite.shader.setInt("u_BlendType", state.blendfunc);
+        if (state.blendfunc == BLEND_MIX)
+            glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+        else if (state.blendfunc == BLEND_ADD)
+            glBlendFuncSeparate(GL_ONE, GL_ONE, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
         // VERTICES
         float quad[12] {

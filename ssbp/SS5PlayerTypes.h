@@ -7,7 +7,7 @@
 
 #include <float.h>
 #include <math.h>
-#include <assert.h>
+#include <stdexcept>
 
 namespace ss
 {
@@ -15,15 +15,14 @@ class SSSize;
 class SSPoint;
 
 
+#define SS_ASSERT(cond)    if (!(cond)) throw std::runtime_error(#cond)
+#define SS_ASSERT2(cond, msg) if (!(cond)) throw std::runtime_error(msg)
+
 #ifdef _DEBUG
-    #define SSLOG(...)       do {} while (0)
-    #define SS_ASSERT(cond)    assert(cond)
-    #define SS_ASSERT2(cond, msg) SS_ASSERT(cond)
+    #define SSLOG(...)       printf(__VA_ARGS__)
     #define SSLOGERROR(format,...)  do {} while (0)
 #else
     #define SSLOG(...)       do {} while (0)
-    #define SS_ASSERT(cond)
-    #define SS_ASSERT2(cond, msg) ((void)(cond))
     #define SSLOGERROR(format,...)  do {} while (0)
 #endif
 
