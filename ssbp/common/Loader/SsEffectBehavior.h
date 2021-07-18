@@ -14,18 +14,18 @@ class SsEffectRenderer;
 class SsEffectBehavior
 {
 public:
-	std::vector<SsEffectElementBase*> plist;
+    std::vector<SsEffectElementBase*> plist;
 
 public:
-	int								CellIndex;	//プレイヤー専用に追加
-	SsCell							refCell;
-	SsString						CellName;
-	SsString						CellMapName;
-	SsRenderBlendType::_enum		blendType;
+    int                                CellIndex;    //プレイヤー専用に追加
+    SsCell                            refCell;
+    SsString                        CellName;
+    SsString                        CellMapName;
+    SsRenderBlendType::_enum        blendType;
 
 public:
-	SsEffectBehavior() : blendType(SsRenderBlendType::invalid) {}
-	virtual ~SsEffectBehavior(){}
+    SsEffectBehavior() : blendType(SsRenderBlendType::invalid) {}
+    virtual ~SsEffectBehavior(){}
 
 };
 

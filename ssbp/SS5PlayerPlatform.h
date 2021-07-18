@@ -11,21 +11,21 @@
 
 namespace ss
 {
-	struct State;
-	struct UserData;
-	class Player;
+    struct State;
+    struct UserData;
+    class Player;
 
-	extern unsigned char* SSFileOpen(const char* pszFileName, const char* pszMode, unsigned long * pSize);
-	extern long SSTextureLoad(const char* pszFileName, SsTexWrapMode::_enum  wrapmode, SsTexFilterMode::_enum filtermode);
-	extern bool SSTextureRelese(long handle);
-	extern bool isAbsolutePath(const std::string& strPath);
-	extern void SSDrawSprite(State state);
-	extern bool SSGetTextureSize(long handle, int &w, int &h);
-	extern void SSonUserData(Player *player, UserData *userData);
-	extern void SSPlayEnd(Player *player);
+    extern unsigned char* SSFileOpen(const char* pszFileName, const char* pszMode, unsigned long * pSize);
+    extern long SSTextureLoad(const char* pszFileName, SsTexWrapMode::_enum  wrapmode, SsTexFilterMode::_enum filtermode);
+    extern bool SSTextureRelese(long handle);
+    extern bool isAbsolutePath(const std::string& strPath);
+    extern void SSDrawSprite(State state);
+    extern bool SSGetTextureSize(long handle, int &w, int &h);
+    extern void SSonUserData(Player *player, UserData *userData);
+    extern void SSPlayEnd(Player *player);
 
 
 
-};	// namespace ss
+};    // namespace ss
 
 #endif

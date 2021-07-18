@@ -12,7 +12,7 @@ uniform vec3 u_Quad[4];
 
 void main()
 {
-	gl_Position = u_View * u_Transform * vec4(u_Quad[gl_VertexID], 1.0f);
-	vertexColor = a_Color;
-	uv = a_UV * u_ImageOffset.xy + u_ImageOffset.zw;
+    gl_Position = u_View * u_Transform * vec4(u_Quad[gl_VertexID], 1.0f);
+    vertexColor = a_Color;
+    uv = a_UV * u_ImageOffset.xy + u_ImageOffset.zw;
 }

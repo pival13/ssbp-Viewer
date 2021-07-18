@@ -2,6 +2,8 @@
 *.vcxproj
 *.filters
 .vs/ssbp_viewer/v14/.suo
+.vscode/
 images/
-Debug/
-Release/
+Screenshots/
+build/
+ssbpViewer*

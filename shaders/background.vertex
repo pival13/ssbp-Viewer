@@ -7,6 +7,6 @@ out vec2 uv;
 uniform vec2 flip;
 
 void main() {
-	uv = flip*a_UV;
-	gl_Position = vec4(a_Pos, 1.0f);
+    uv = flip*a_UV;
+    gl_Position = vec4(a_Pos, 1.0f);
 }

@@ -1,4 +1,4 @@
-﻿/*! \mainpage 
+﻿/*! \mainpage
  *
  * \section 初めに
  *
@@ -18,7 +18,7 @@
  * OPTPiX SpriteStuidoで作成されるファイル形式はsspj、ssae、ssceの三種類となります。
  * 旧形式のssaxにつきましては、別途あるssaxのドキュメントを参照下さい。
  * （SpriteStudioのユーザーサポートページにございます。）
- * 
+ *
  * \section sspjファイルについて
  * \n
  * sspjは、SpriteStudioのプロジェクトファイルです。
@@ -31,31 +31,31 @@
  * <animeList>のブロックには、<anime>が複数格納される場合があります。（同一のModelでアニメーションを作成している場合）\n
  * \n
  * <pre>
- *	<SpriteStudioAnimePack>
- *		<settings>
- *			アニメーションの再生設定
- *		</settings>
- *		<name>アニメーション名称</name>
- *		<Model>
- *			<partList>
- *			アニメーションを構成するパーツの種別、組み合わせデータの記述
- *				:
- *				:
- *			</partList>
- *		</Model>
- *		<cellmapNames>
- *			アニメーションで使用しているセルマップのファイル名リスト
- *				:
- *				:
- *		</cellmapNames>
- *		<animeList>
- *			<anime>
- *				アニメーションデータ
- *					:
- *					:
- *			</anime>
- *		</animeList>
- *	</SpriteStudioAnimePack>
+ *    <SpriteStudioAnimePack>
+ *        <settings>
+ *            アニメーションの再生設定
+ *        </settings>
+ *        <name>アニメーション名称</name>
+ *        <Model>
+ *            <partList>
+ *            アニメーションを構成するパーツの種別、組み合わせデータの記述
+ *                :
+ *                :
+ *            </partList>
+ *        </Model>
+ *        <cellmapNames>
+ *            アニメーションで使用しているセルマップのファイル名リスト
+ *                :
+ *                :
+ *        </cellmapNames>
+ *        <animeList>
+ *            <anime>
+ *                アニメーションデータ
+ *                    :
+ *                    :
+ *            </anime>
+ *        </animeList>
+ *    </SpriteStudioAnimePack>
  * </pre>
  *\n
  *
@@ -66,18 +66,18 @@
  * \n
  *
  * \subsection  ssaeファイル　animeブロックの解説
- * 
+ *
  * <anime>ブロックは、アニメーションの再生FPSや名称などの設定値とそれぞれのキーフレームでパーツに適用するアトリビュート値が格納されています。\n
  * キーフレームのアトリビュート値は<partAnimes>ブロックに記載されています。\n
  * <partAnimes>は<partAnime>のコンテナとなっており、<partAnime>はモデルで定義された各パーツに対応したアトリビュート値がキーフレーム値と一緒に記載されています。\n
  * \n
  * (例）\n
  *<pre>
- * 	<attribute tag="POSX">
- *		<key time="0" ipType="linear">
- *			\<value\>0\</value\>
- *		</key>
- *	</attribute>
+ *     <attribute tag="POSX">
+ *        <key time="0" ipType="linear">
+ *            \<value\>0\</value\>
+ *        </key>
+ *    </attribute>
  * </pre>
  * \n
  * ここで、アトリビュートはPOSX=パーツの座標Xを示しており、そのキーフレームはtime=0の場所、補完方法はliner=線形補間となっており、\n
@@ -88,28 +88,28 @@
  * \section ssceファイルについて
  * ssceファイルは、OPTPiX SpriteStudioで作成されたセルマップの情報が記述されているファイルです。\n
  * 各セルは、<cells>のブロック内で一つづつ<cell>要素で記述が行われています。\n
- * 
+ *
  * 例）
  * <pre>
-* 	<cells>
-*		<cell>
-*			<name>arm_l</name>
-*			<pos>128 0</pos>
-*			<size>128 192</size>
-*			<pivot>0.4296875 -0.354166656732559</pivot>
-*			<rotated>0</rotated>
-*			<orgImageName></orgImageName>
-*			<posStable>0</posStable>
-*		</cell>
-*		:
-*		:
+*     <cells>
+*        <cell>
+*            <name>arm_l</name>
+*            <pos>128 0</pos>
+*            <size>128 192</size>
+*            <pivot>0.4296875 -0.354166656732559</pivot>
+*            <rotated>0</rotated>
+*            <orgImageName></orgImageName>
+*            <posStable>0</posStable>
+*        </cell>
+*        :
+*        :
 * </pre>
 *\n
 * 基本的にssceは、複雑なフォーマットにはなっておらず、cellの配列として記述が行われておりますので、\n
 * 各タグを本ドキュメントで検索頂けるとご使用いただけます。\n
 * \n
 */
- 
+
 #ifndef __SSLIB__
 #define __SSLIB__
 
