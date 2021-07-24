@@ -67,10 +67,10 @@ int main(int argc, char* argv[]) {
     sprite.dir = replace(sprite.dir, "\\", "/").substr(0, sprite.dir.rfind("/") + 1);
 
     std::vector<std::string> shader_name_list{
-        sprite.dir + "shaders/sprite.vertex",
-        sprite.dir + "shaders/sprite.fragment",
-        sprite.dir + "shaders/background.vertex",
-        sprite.dir + "shaders/background.fragment"
+        sprite.dir + "shaders/sprite.vert",
+        sprite.dir + "shaders/sprite.frag",
+        sprite.dir + "shaders/background.vert",
+        sprite.dir + "shaders/background.frag"
     };
     /**/
     if (argc == 1) {
@@ -130,9 +130,7 @@ void draw(GLFWwindow* window) {
 
     background.shader.use();
     background.shader.setTexture2D("u_Texture", background.texture->id);
-    background.shader.setVec2("flip", 1.0f, 1.0f);
     background.shader.setBool("u_UseTexture", background.texture->loaded);
-    background.shader.setFloat("u_Time", currentTime);
     background.draw();
 
     sprite.shader.use();

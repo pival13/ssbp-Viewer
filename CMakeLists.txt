@@ -29,7 +29,6 @@ set(SOURCES
     src/shader.cpp
     src/sprite.cpp
     src/texture.cpp
-
     ssbp/SS5Player.cpp
     ssbp/SS5PlayerPlatform.cpp
     ssbp/Common/Animator/ssplayer_effect.cpp
@@ -61,11 +60,3 @@ set_target_properties(${PROJECT} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY_RELEASE "${PROJECT_SOURCE_DIR}"
     DEBUG_POSTFIX "_d"
 )
-
-#if(UNIX)
-#    target_link_libraries(${PROJECT} PUBLIC dl)
-#endif()
-
-#target_link_libraries(${PROJECT} PUBLIC
-#    "C:/Program Files/GLEW/lib/glew32.lib"
-#)

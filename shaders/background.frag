@@ -5,12 +5,10 @@ out vec4 fragColor;
 
 uniform sampler2D u_Texture;
 uniform bool u_UseTexture;
-//uniform float u_Time;
 
 void main() {
     if (u_UseTexture) {
-        vec4 image = texture2D(u_Texture, uv);
-        fragColor = image;
+        fragColor = texture2D(u_Texture, uv);
     }
     else {
         //fragColor = vec4(0.7f, 0.4f, 0.2f, 1.0f);

@@ -4,9 +4,8 @@ layout (location = 0) in vec3 a_Pos;
 layout (location = 1) in vec2 a_UV;
 
 out vec2 uv;
-uniform vec2 flip;
 
 void main() {
-    uv = flip*a_UV;
+    uv = a_UV;
     gl_Position = vec4(a_Pos, 1.0f);
 }

@@ -9,6 +9,8 @@
 #include <glad/glad.h> // include glad to get all the required OpenGL headers
 #include "file_reader.h"
 
+#include <glm/vec4.hpp>
+
 class Shader
 {
 public:
@@ -25,8 +27,9 @@ public:
     void setInt(const std::string& name, int value) const;
     void setFloat(const std::string& name, float value) const;
     void setVec2(const std::string& name, float value1, float value2) const;
-    void setVec3v(const std::string & name, const float* value, GLsizei count) const;
-    void setVec4v(const std::string & name, const float* value, GLsizei count) const;
+    void setArrayVec3(const std::string & name, const float* value, GLsizei count) const;
+    void setArrayVec4(const std::string & name, const float* value, GLsizei count) const;
+    void setVec4(const std::string & name, const glm::vec4 &vec) const;
     void setMat4(const std::string& name, const float* value) const;
     void setTexture2D(const std::string& name, GLuint texture, int unit=0) {
         glUniform1i(glGetUniformLocation(ID, name.c_str()), unit);

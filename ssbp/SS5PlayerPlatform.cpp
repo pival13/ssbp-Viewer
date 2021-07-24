@@ -113,39 +113,30 @@ namespace ss
     */
     void SSDrawSprite(State state)
     {
-        // TEXTURE COORDINATES
-        float u_scale = state.quad.tr.texCoords.u - state.quad.bl.texCoords.u;
-        float v_scale = state.quad.bl.texCoords.v - state.quad.tr.texCoords.v;
-        float u_offset = state.quad.bl.texCoords.u;
-        float v_offset = 1.0 - state.quad.bl.texCoords.v;
-        glm::vec4 uv_offset(u_scale, v_scale, u_offset, v_offset);
-        sprite.shader.setVec4v("u_ImageOffset", glm::value_ptr(uv_offset), 1);
-        // TEXTURE
-        sprite.shader.setTexture2D("u_Texture", sprite.textures[state.texture.handle - 1]->id);
-
-        const float fivTwel = 1.0f / 256.0f;
-        // VERTEX TRANSFORMATIONS
-        glm::mat4 mat = glm::make_mat4(state.mat);
-        mat = glm::rotate(mat, glm::radians(-state.instancerotationZ), glm::vec3(0.0f, 0.0f, 1.0f));
-        sprite.shader.setMat4("u_Transform", glm::value_ptr(mat));
-        sprite.shader.setFloat("u_Opacity", float(state.opacity) / 255.0f);
-        sprite.shader.setBool("u_UseTexture", sprite.textures[state.texture.handle - 1]->loaded);
-
         sprite.shader.setInt("u_BlendType", state.blendfunc);
         if (state.blendfunc == BLEND_MIX)
             glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
         else if (state.blendfunc == BLEND_ADD)
             glBlendFuncSeparate(GL_ONE, GL_ONE, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
-        // VERTICES
-        float quad[12] {
-            state.quad.tr.vertices.x, state.quad.tr.vertices.y, state.quad.tr.vertices.z,
-            state.quad.br.vertices.x, state.quad.br.vertices.y, state.quad.br.vertices.z,
-            state.quad.bl.vertices.x, state.quad.bl.vertices.y, state.quad.bl.vertices.z,
-            state.quad.tl.vertices.x, state.quad.tl.vertices.y, state.quad.tl.vertices.z
-        };
+        sprite.shader.setTexture2D("u_Texture", sprite.textures[state.texture.handle - 1]->id);
+        sprite.shader.setBool("u_UseTexture", sprite.textures[state.texture.handle - 1]->loaded);
 
-        sprite.shader.setVec3v("u_Quad", quad, 12);
+        sprite.shader.setVec4("u_Quad[0].vertex", glm::make_mat4(state.mat) * glm::vec4(*(glm::vec3*)(&state.quad.tl.vertices), 1));
+        sprite.shader.setVec4("u_Quad[1].vertex", glm::make_mat4(state.mat) * glm::vec4(*(glm::vec3*)(&state.quad.bl.vertices), 1));
+        sprite.shader.setVec4("u_Quad[2].vertex", glm::make_mat4(state.mat) * glm::vec4(*(glm::vec3*)(&state.quad.tr.vertices), 1));
+        sprite.shader.setVec4("u_Quad[3].vertex", glm::make_mat4(state.mat) * glm::vec4(*(glm::vec3*)(&state.quad.br.vertices), 1));
+
+        sprite.shader.setVec2("u_Quad[0].uv", state.quad.tl.texCoords.u, 1.f-state.quad.tl.texCoords.v);
+        sprite.shader.setVec2("u_Quad[1].uv", state.quad.bl.texCoords.u, 1.f-state.quad.bl.texCoords.v);
+        sprite.shader.setVec2("u_Quad[2].uv", state.quad.tr.texCoords.u, 1.f-state.quad.tr.texCoords.v);
+        sprite.shader.setVec2("u_Quad[3].uv", state.quad.br.texCoords.u, 1.f-state.quad.br.texCoords.v);
+
+        sprite.shader.setVec4("u_Quad[0].color", glm::vec4(*(glm::u8vec4*)(&state.quad.tl.colors)) / 255.f * float(state.opacity) / 255.f);
+        sprite.shader.setVec4("u_Quad[1].color", glm::vec4(*(glm::u8vec4*)(&state.quad.bl.colors)) / 255.f * float(state.opacity) / 255.f);
+        sprite.shader.setVec4("u_Quad[2].color", glm::vec4(*(glm::u8vec4*)(&state.quad.tr.colors)) / 255.f * float(state.opacity) / 255.f);
+        sprite.shader.setVec4("u_Quad[3].color", glm::vec4(*(glm::u8vec4*)(&state.quad.br.colors)) / 255.f * float(state.opacity) / 255.f);
+
         sprite.render_quad();
     }
 
