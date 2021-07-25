@@ -11,15 +11,13 @@ uniform sampler2D u_Texture;
 uniform int u_BlendType;
 
 void main() {
-    vec4 color = texture2D(u_Texture, uv);
-
     if (!u_UseTexture) {
         discard;
     }
 
+    vec4 color = texture2D(u_Texture, uv);
+
     fragColor = color * vertexColor;
-    //fragColor.a *= u_Opacity;
     if (u_BlendType == 2) // Add
-        fragColor.a *= 0.5f; // Decreasing opacity do not change the color, but improve the render without background
-    //fragColor = vec4(1);
+        fragColor.a *= 0.5f; // Decreasing opacity do not change the color, but improve the render when exported with alpha
 }

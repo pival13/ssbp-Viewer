@@ -1,6 +1,8 @@
 #include <iostream>
 #include <iomanip>
 #include <filesystem>
+#include <chrono>
+#include <thread>
 
 #include "glad/glad.h"
 #include <GLFW/glfw3.h>
@@ -24,17 +26,15 @@
 #define WIN_WIDTH 1200
 #endif
 #ifndef WIN_HEIGHT
-#define WIN_HEIGHT 1024
+#define WIN_HEIGHT 800
 #endif
 
 Sprite sprite;
 Quad background; // the background quad/plane; has its own shader
 
 // Globals
-//const unsigned int WIN_WIDTH = 512;
-//const unsigned int WIN_HEIGHT = 512;
-const float fivTwel = 2.0f / WIN_WIDTH; // for viewport scale
 glm::vec3 mover(0.0f, -0.5f, 0.0f); // camera position
+// Map window coordinate (0~WIN_WIDTH,0~WIN_HEIGHT) with OpenGL coordinate (-1~1)
 glm::vec3 scale(2.0f / WIN_WIDTH, 2.0f / WIN_HEIGHT, 1.0f); // camera view scale
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -46,7 +46,8 @@ void draw(GLFWwindow* window);
 GLFWwindow *initOpenGL();
 std::string replace(const std::string &src, const std::string &what, const std::string &repl);
 
-float aspect_ratio = WIN_WIDTH / WIN_HEIGHT;
+unsigned int windowWidth = WIN_WIDTH;
+unsigned int windowHeight = WIN_HEIGHT;
 float frame_rate = 60.0f;
 
 std::string help = // hotkeys
@@ -106,6 +107,7 @@ int main(int argc, char* argv[]) {
         while (!glfwWindowShouldClose(window)) {
             draw(window);
             handleEvents(window);
+            std::this_thread::sleep_for(std::chrono::milliseconds(int(1000 / frame_rate)));
         }
     } catch (const std::runtime_error &e) {
         std::cerr << e.what() << std::endl;
@@ -129,6 +131,8 @@ void draw(GLFWwindow* window) {
     glClear(GL_COLOR_BUFFER_BIT);
 
     background.shader.use();
+    background.shader.setVec2("u_Coef", float(background.texture->width) / windowWidth,
+                                        float(background.texture->height) / windowHeight);
     background.shader.setTexture2D("u_Texture", background.texture->id);
     background.shader.setBool("u_UseTexture", background.texture->loaded);
     background.draw();
@@ -137,9 +141,7 @@ void draw(GLFWwindow* window) {
     sprite.ssPlayer->update(deltaTime);    //Player update
     sprite.draw();    //Draw a layer
 
-    glm::mat4 view(1.0f);
-    view = glm::translate(view, mover);
-    view = glm::scale(view, scale*glm::vec3(1.0f, aspect_ratio, 1.0f));
+    glm::mat4 view = glm::scale(glm::translate(glm::mat4(1.0f), mover), scale);
     sprite.shader.setMat4("u_View", glm::value_ptr(view));
 
     sprite.shader.setFloat("u_Time", currentTime);
@@ -165,7 +167,7 @@ GLFWwindow *initOpenGL()
     glfwSetKeyCallback(window, key_callback);
     glfwSetScrollCallback(window, scroll_callback);
     glfwSetDropCallback(window, drop_callback);
-    glfwSetWindowSizeLimits(window, WIN_WIDTH, WIN_HEIGHT, GLFW_DONT_CARE, GLFW_DONT_CARE);
+    glfwSetWindowSizeLimits(window, 300, 300, GLFW_DONT_CARE, GLFW_DONT_CARE);
     glfwSwapInterval(60 / int(frame_rate)); //test //0 = unlocked frame rate; 1=60fps; 2=30fps; 3=20fps
     glfwSetInputMode(window, GLFW_STICKY_MOUSE_BUTTONS, GL_TRUE); // test
 
@@ -178,12 +180,12 @@ GLFWwindow *initOpenGL()
 }
 
 void zoom(double delta) {
-    float z = float(delta)*scale.y*2.0f;
-    float sign = (scale.x > 0.0f) ? 1.0f : ((scale.x < 0.0f) ? -1.0f : 0.0f);
-    scale += glm::vec3(z*sign, z, 0.0f);
+    float x = float(delta)*scale.x*2.0f;
+    float y = float(delta)*scale.y*2.0f;
+    scale += glm::vec3(x, y, 0.0f);
     float threshold = 0.001f;
     if (scale.y < threshold) {
-        scale.x = threshold * sign;
+        scale.x = threshold * scale.x / scale.y;
         scale.y = threshold;
     }
 }
@@ -226,11 +228,9 @@ void flip_view() {
         background.shader.setVec2("flip", 1.0f, -1.0f);
     }
     sprite.shader.use();
-    glm::mat4 view;
     scale.y = -scale.y;
     mover.y = -mover.y;
-    view = glm::translate(view, mover);
-    view = glm::scale(view, scale*glm::vec3(1.0f, aspect_ratio, 1.0f));
+    glm::mat4 view = glm::scale(glm::translate(glm::mat4(1.0f), mover), scale);
     sprite.shader.setMat4("u_View", glm::value_ptr(view));
 }
 
@@ -341,7 +341,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
     case GLFW_KEY_C:
         if (action == GLFW_PRESS) {
             mover = glm::vec3(0.0f, 0.0f, 0.0f);
-            scale = glm::vec3(fivTwel, fivTwel, 1.0f);
+            scale = glm::vec3(2.0f / windowWidth, 2.0f / windowHeight, 1.0f);
         }
         break;
     // Flip
@@ -451,7 +451,9 @@ void drop_callback(GLFWwindow* window, int count, const char** paths)
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     // make sure the viewport matches the new window dimensions; note that width and
     // height will be significantly larger than specified on retina displays.
-    aspect_ratio = float(width) / height;
+    scale *= glm::vec3(float(windowWidth) / float(width), float(windowHeight) / float(height), 1.f);
+    windowWidth = width;
+    windowHeight = height;
     glViewport(0, 0, width, height);
     draw(window);
 }
