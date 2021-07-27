@@ -18,7 +18,6 @@ void Texture::openFile() {
             return;
         #endif
         Magick::Image img(file_name);
-        img.flip();
         width = img.columns();
         height = img.rows();
         nrChannels = img.channels();

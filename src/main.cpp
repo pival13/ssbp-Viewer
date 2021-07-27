@@ -3,20 +3,15 @@
 #include <filesystem>
 #include <chrono>
 #include <thread>
+#include <mutex>
+#include <queue>
 
+#include <Magick++.h>
 #include "glad/glad.h"
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-
-#ifdef _MSC_VER
-#pragma warning(disable: 4251)
-#pragma warning(disable: 4267)
-#pragma warning(disable: 4275)
-#endif
-
-#include <Magick++.h>
 
 #include "texture.h"
 #include "quad.h"
@@ -31,12 +26,16 @@
 
 Sprite sprite;
 Quad background; // the background quad/plane; has its own shader
+std::queue<std::function<void()>> savers;
+std::mutex saveMutex;
+GLFWwindow *window;
 
 // Globals
 glm::vec3 mover(0.0f, -0.5f, 0.0f); // camera position
 // Map window coordinate (0~WIN_WIDTH,0~WIN_HEIGHT) with OpenGL coordinate (-1~1)
 glm::vec3 scale(2.0f / WIN_WIDTH, 2.0f / WIN_HEIGHT, 1.0f); // camera view scale
 
+void saveScreenshots();
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int modifier);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
@@ -86,7 +85,7 @@ int main(int argc, char* argv[]) {
     /**/
 
     try {
-        GLFWwindow *window = initOpenGL();
+        window = initOpenGL();
 
         // initialize shaders & geometry
         sprite.init(shader_name_list[0], shader_name_list[1]);
@@ -103,19 +102,23 @@ int main(int argc, char* argv[]) {
 
         std::cout << help << '\n' << sprite.file_name << "\nNumber of animations: " << sprite.animation_list.size() << "\n\n" << sprite.ssPlayer->getPlayAnimeName() << std::endl;
 
+        std::thread fileSaver(saveScreenshots);
+
         // render loop
         while (!glfwWindowShouldClose(window)) {
             draw(window);
             handleEvents(window);
             std::this_thread::sleep_for(std::chrono::milliseconds(int(1000 / frame_rate)));
         }
+        glfwTerminate();
+        window = nullptr;
+        fileSaver.join();
     } catch (const std::runtime_error &e) {
         std::cerr << e.what() << std::endl;
         glfwTerminate();
         return 1;
     }
 
-    glfwTerminate();
     return 0;
 }
 
@@ -148,6 +151,19 @@ void draw(GLFWwindow* window) {
 
     //glfw: swap buffers and poll IO events (keys pressed/releaed, mouse moved etc.)
     glfwSwapBuffers(window);
+}
+
+void saveScreenshots()
+{
+    while (window != nullptr || !savers.empty()) {
+        if (savers.empty())
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        else {
+            savers.front()();
+            std::unique_lock lock(saveMutex);
+            savers.pop();
+        }
+    }
 }
 
 GLFWwindow *initOpenGL()
@@ -234,6 +250,8 @@ void flip_view() {
     sprite.shader.setMat4("u_View", glm::value_ptr(view));
 }
 
+void key_save_screen();
+void key_save_animation();
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int modifier) {
     switch (key) {
     // Help
@@ -351,90 +369,13 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         break;
     // screenshot
     case GLFW_KEY_Q:
-        if (action == GLFW_PRESS) {
-            std::string folder = "Screenshots/";
-            std::filesystem::create_directory(folder);
-            folder += sprite.file_name + "/";
-            std::filesystem::create_directory(folder);
-
-            GLint vp[4];
-            glGetIntegerv(GL_VIEWPORT, vp);
-
-            glClear(GL_COLOR_BUFFER_BIT);
-            sprite.draw();
-
-            GLubyte* image = new GLubyte[vp[2] * vp[3] * 4];
-            glReadPixels(vp[0], vp[1], vp[2], vp[3], GL_RGBA, GL_UNSIGNED_BYTE, image);
-            // Reverse premultiplied alpha
-            for (int i = 0; i != vp[2] * vp[3]; ++i) {
-                if (image[i*4+3] == 0) continue;
-                image[i*4] = GLubyte(std::min(int(image[i*4] * 0xFF) / image[i*4+3], 0xFF));
-                image[i*4+1] = GLubyte(std::min(int(image[i*4+1] * 0xFF) / image[i*4+3], 0xFF));
-                image[i*4+2] = GLubyte(std::min(int(image[i*4+2] * 0xFF) / image[i*4+3], 0xFF));
-            }
-            Magick::Image img(vp[2], vp[3], "RGBA", Magick::CharPixel, image);
-            img.flip();
-
-            // Remove empty borders
-            Magick::Geometry area = img.boundingBox();
-            int w = int(std::ceil((area.width() + 10) / 10) * 10);
-            int h = int(std::ceil((area.height() + 10) / 10) * 10);
-            Magick::Geometry geo = Magick::Geometry(
-                w, h,
-                ssize_t(std::ceil(area.xOff() - (w - area.width()) / 2)),
-                ssize_t(std::ceil(area.yOff() - (h - area.height()) / 2))
-            );
-            img.crop(geo);
-
-            std::string image_name = sprite.ssPlayer->getPlayAnimeName() + '_' + std::to_string(sprite.ssPlayer->getFrameNo()) + ".png";
-            img.write(folder + image_name);
-
-            delete[] image;
-            std::cout << "Image saved: " << folder + image_name << std::endl;
-        }
+        if (action == GLFW_PRESS)
+            key_save_screen();
         break;
     // Save animation
     case GLFW_KEY_W:
-        if (action == GLFW_PRESS) {
-            std::string folder = "Screenshots/";
-            std::filesystem::create_directory(folder);
-            folder += sprite.file_name + "/";
-            std::filesystem::create_directory(folder);
-
-            GLint vp[4];
-            glGetIntegerv(GL_VIEWPORT, vp);
-
-            GLubyte* image = new GLubyte[vp[2] * vp[3] * 4];
-            std::vector<Magick::Image> images(sprite.ssPlayer->getMaxFrame());
-
-            for (int frame = 0; frame != sprite.ssPlayer->getMaxFrame(); ++frame) {
-                // Draw with background
-                glClear(GL_COLOR_BUFFER_BIT);
-                if (background.texture->loaded) {
-                    background.shader.use();
-                    background.shader.setTexture2D("u_Texture", background.texture->id);
-                    background.draw();
-                }
-                sprite.shader.use();
-                sprite.ssPlayer->setFrameNo(frame);
-                sprite.ssPlayer->update(0);
-                sprite.draw();
-
-                // Read image
-                glReadPixels(vp[0], vp[1], vp[2], vp[3], GL_RGBA, GL_UNSIGNED_BYTE, image);
-                Magick::Image img(vp[2], vp[3], "RGBA", Magick::CharPixel, image);
-                img.flip();
-
-                // Add image to GIF buffer
-                img.gifDisposeMethod(MagickCore::DisposeType::BackgroundDispose);
-                images[frame] = img;
-            }
-            std::string image_name = sprite.ssPlayer->getPlayAnimeName() + ".gif";
-            Magick::writeImages(images.begin(), images.end(), folder + image_name);
-
-            delete[] image;
-            std::cout << "Animation saved: " << folder + image_name << std::endl;
-        }
+        if (action == GLFW_PRESS)
+            key_save_animation();
         break;
     }
 }
@@ -456,6 +397,126 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     windowHeight = height;
     glViewport(0, 0, width, height);
     draw(window);
+}
+
+
+void key_save_screen()
+{
+    GLint vp[4];
+    glGetIntegerv(GL_VIEWPORT, vp);
+
+    glClear(GL_COLOR_BUFFER_BIT);
+    sprite.draw();
+    GLubyte* image = new GLubyte[vp[2] * vp[3] * 4];
+    glReadPixels(vp[0], vp[1], vp[2], vp[3], GL_RGBA, GL_UNSIGNED_BYTE, image);
+
+    // Reverse premultiplied alpha
+    for (int i = 0; i != vp[2] * vp[3]; ++i) {
+        if (image[i*4+3] == 0) continue;
+        image[i*4] = GLubyte(std::min(int(image[i*4] * 0xFF) / image[i*4+3], 0xFF));
+        image[i*4+1] = GLubyte(std::min(int(image[i*4+1] * 0xFF) / image[i*4+3], 0xFF));
+        image[i*4+2] = GLubyte(std::min(int(image[i*4+2] * 0xFF) / image[i*4+3], 0xFF));
+    }
+    Magick::Image img(vp[2], vp[3], "RGBA", Magick::CharPixel, image);
+    img.flip();
+
+    // Remove empty borders
+    Magick::Geometry area = img.boundingBox();
+    size_t extraW = 10 + area.width() / 10 * 10 - area.width();
+    size_t extraH = 10 + area.height() / 10 * 10 - area.height();
+    Magick::Geometry geo = Magick::Geometry(
+        area.width() + extraW,
+        area.height() + extraH,
+        area.xOff() - extraW / 2,
+        area.yOff() - extraH / 2
+    );
+    img.crop(geo);
+
+    std::filesystem::create_directories("Screenshots/" + sprite.file_name);
+    std::string image_name = "Screenshots/" + sprite.file_name + "/" + sprite.ssPlayer->getPlayAnimeName() +
+                             "_" + std::to_string(sprite.ssPlayer->getFrameNo()) + ".png";
+    std::unique_lock lock(saveMutex);
+    savers.push([img,image,image_name]() {
+        Magick::Image(img).write(image_name);
+        delete[] image;
+        std::cout << "Image saved: " << image_name << std::endl;
+    });
+}
+
+void key_save_animation()
+{
+    GLint vp[4];
+    glGetIntegerv(GL_VIEWPORT, vp);
+
+    GLubyte* image = new GLubyte[vp[2] * vp[3] * 4];
+    std::vector<Magick::Image> *images = new std::vector<Magick::Image>(sprite.ssPlayer->getMaxFrame());
+    glm::u64mat2x2 size(vp[2], vp[3], 0, 0);
+
+    int animFps = sprite.ssPlayer->getAnimFps();
+    bool looping = sprite.is_looping();
+    for (int frame = 0; frame != sprite.ssPlayer->getMaxFrame(); ++frame) {
+        // First draw to get size
+        glClear(GL_COLOR_BUFFER_BIT);
+        sprite.shader.use();
+        sprite.ssPlayer->setFrameNo(frame);
+        sprite.ssPlayer->update(0);
+        sprite.draw();
+        glReadPixels(vp[0], vp[1], vp[2], vp[3], GL_RGBA, GL_UNSIGNED_BYTE, image);
+        Magick::Geometry tmpSize = Magick::Image(vp[2], vp[3], "RGBA", Magick::CharPixel, image).boundingBox();
+        if (size[0].x > (size_t)tmpSize.xOff())             size[0].x = tmpSize.xOff();
+        if (size[1].x < tmpSize.xOff()+tmpSize.width())     size[1].x = tmpSize.xOff()+tmpSize.width();
+        if (size[0].y > (size_t)tmpSize.yOff())             size[0].y = tmpSize.yOff();
+        if (size[1].y < tmpSize.yOff()+tmpSize.height())    size[1].y = tmpSize.yOff()+tmpSize.height();
+
+        // Actual draw with background
+        glClear(GL_COLOR_BUFFER_BIT);
+        if (background.texture->loaded) {
+            background.shader.use();
+            background.shader.setTexture2D("u_Texture", background.texture->id);
+            background.draw();
+        }
+        sprite.shader.use();
+        sprite.draw();
+
+        // Read image
+        glReadPixels(vp[0], vp[1], vp[2], vp[3], GL_RGBA, GL_UNSIGNED_BYTE, image);
+        Magick::Image img(vp[2], vp[3], "RGBA", Magick::CharPixel, image);
+        img.flip();
+        glfwSwapBuffers(window);
+
+        // Add image to GIF buffer
+        img.gifDisposeMethod(MagickCore::DisposeType::BackgroundDispose);
+        img.animationDelay(100 * frame / animFps - 100 * (frame-1) / animFps);
+        img.animationIterations(looping ? 0 : 1);
+        (*images)[frame] = img;
+    }
+
+    // Remove useless borders
+    size_t extraW = 10 + (size[1].x - size[0].x) / 10 * 10 - (size[1].x - size[0].x);
+    size_t extraH = 10 + (size[1].y - size[0].y) / 10 * 10 - (size[1].y - size[0].y);
+    Magick::Geometry cropArea(
+        size[1].x - size[0].x + extraW,
+        size[1].y - size[0].y + extraH,
+        size[0].x - extraW / 2,
+        vp[3] - size[1].y - extraH / 2 // size use unflipped coordinate, so the y offset must be reversed
+    );
+    for (size_t i = 0; i != images->size(); ++i) {
+        (*images)[i].modifyImage();
+        (*images)[i].crop(cropArea);
+        (*images)[i].page(Magick::Geometry(cropArea.width(), cropArea.height()));
+    }
+
+    std::string image_name = "Screenshots/" + sprite.file_name + "/" +
+                             sprite.ssPlayer->getPlayAnimeName() + ".gif";
+    std::filesystem::create_directories("Screenshots/" + sprite.file_name);
+    std::unique_lock lock(saveMutex);
+    savers.push([images,image,image_name]() {
+        std::cout << std::string(image_name) << std::endl;
+        Magick::writeImages(images->begin(), images->end(), image_name);
+        delete[] image;
+        delete images;
+        std::cout << "Animation saved: " << image_name << std::endl;
+    });
 }
 
 std::string replace(const std::string &src, const std::string &what, const std::string &repl)

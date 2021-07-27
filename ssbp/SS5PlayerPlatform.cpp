@@ -127,10 +127,10 @@ namespace ss
         sprite.shader.setVec4("u_Quad[2].vertex", glm::make_mat4(state.mat) * glm::vec4(*(glm::vec3*)(&state.quad.tr.vertices), 1));
         sprite.shader.setVec4("u_Quad[3].vertex", glm::make_mat4(state.mat) * glm::vec4(*(glm::vec3*)(&state.quad.br.vertices), 1));
 
-        sprite.shader.setVec2("u_Quad[0].uv", state.quad.tl.texCoords.u, 1.f-state.quad.tl.texCoords.v);
-        sprite.shader.setVec2("u_Quad[1].uv", state.quad.bl.texCoords.u, 1.f-state.quad.bl.texCoords.v);
-        sprite.shader.setVec2("u_Quad[2].uv", state.quad.tr.texCoords.u, 1.f-state.quad.tr.texCoords.v);
-        sprite.shader.setVec2("u_Quad[3].uv", state.quad.br.texCoords.u, 1.f-state.quad.br.texCoords.v);
+        sprite.shader.setVec2("u_Quad[0].uv", state.quad.tl.texCoords.u, state.quad.tl.texCoords.v);
+        sprite.shader.setVec2("u_Quad[1].uv", state.quad.bl.texCoords.u, state.quad.bl.texCoords.v);
+        sprite.shader.setVec2("u_Quad[2].uv", state.quad.tr.texCoords.u, state.quad.tr.texCoords.v);
+        sprite.shader.setVec2("u_Quad[3].uv", state.quad.br.texCoords.u, state.quad.br.texCoords.v);
 
         sprite.shader.setVec4("u_Quad[0].color", glm::vec4(*(glm::u8vec4*)(&state.quad.tl.colors)) / 255.f * float(state.opacity) / 255.f);
         sprite.shader.setVec4("u_Quad[1].color", glm::vec4(*(glm::u8vec4*)(&state.quad.bl.colors)) / 255.f * float(state.opacity) / 255.f);

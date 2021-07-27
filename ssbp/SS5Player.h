@@ -130,7 +130,7 @@ extern void get_uv_rotation(float *u, float *v, float cu, float cv, float deg);
 
 /**
 * State
-パーツの情報を格納します。Stateの内容をもとに描画処理を作成してください。
+* パーツの情報を格納します。Stateの内容をもとに描画処理を作成してください。
 */
 struct State
 {
@@ -163,6 +163,7 @@ struct State
     float instancerotationX;        /// インスタンスパーツに設定されたX回転
     float instancerotationY;        /// インスタンスパーツに設定されたY回転
     float instancerotationZ;        /// インスタンスパーツに設定されたZ回転
+
     SSV3F_C4B_T2F_Quad quad;        /// Vertices data (vertex position, color, UV)
     TextuerData texture;            /// Texture data
     SSRect rect;                    /// Texture rect

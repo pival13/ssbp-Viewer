@@ -21,6 +21,10 @@ find_package(ImageMagick COMPONENTS MagickWand REQUIRED)
 #else()
 #add_compile_options(-Wall -Wextra -O2)
 #endif()
+add_compile_options(
+    -wd4251 # needs to have dll-interface
+    -wd4275 # non dll-interface class used as base for dll-interface class
+)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 

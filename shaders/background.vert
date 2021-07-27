@@ -8,7 +8,7 @@ uniform vec2 u_Coef;
 
 void main() {
     // Change the following value to change the background behaviour
-    switch (2) {
+    switch (1) {
     case 0:             // The background is stretch to match the window
         uv = a_UV;
         break;
@@ -23,5 +23,5 @@ void main() {
     }
     //uv += 
 
-    gl_Position = vec4(a_Pos, 1.0f);
+    gl_Position = vec4(a_Pos.x, -a_Pos.y, a_Pos.z, 1.0f);
 }
