@@ -13,16 +13,12 @@
 void Texture::openFile() {
     // load and generate the texture
     try {
-        #if _DEBUG
-            // ImageMagick doesn't seems to work on debug
-            return;
-        #endif
         Magick::Image img(file_name);
         width = img.columns();
         height = img.rows();
         nrChannels = img.channels();
 
-        uint8_t* pixel_array = (uint8_t*)img.getPixels(0, 0, width, height);
+        uint8_t* pixel_array = img.getPixels(0, 0, width, height);
         if (nrChannels == 4)
             for (int i = 0; i != width * height; ++i) {
                 pixel_array[i*4] = uint8_t(int(pixel_array[i*4] * pixel_array[i*4+3]) / 0xFF);

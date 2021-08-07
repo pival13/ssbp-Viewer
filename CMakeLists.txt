@@ -5,28 +5,17 @@ project(${PROJECT})
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(MSVC_DISABLED_WARNINGS_LIST
-    "C4251"
-)
 
 find_package(OpenGL REQUIRED)
 find_package(glfw3 REQUIRED)
 find_package(glm REQUIRED)
-find_package(ImageMagick COMPONENTS Magick++ REQUIRED)
-find_package(ImageMagick COMPONENTS MagickCore REQUIRED)
-find_package(ImageMagick COMPONENTS MagickWand REQUIRED)
+find_package(ImageMagick COMPONENTS Magick++ MagickCore MagickWand REQUIRED)
+string(REPLACE "_RL_" "_DB_" ImageMagick_LIBRARIES_DEBUG "${ImageMagick_LIBRARIES}")
 
-#if(WIN32)
-#add_compile_options(/W4 /D_WIN32_WINNT=0x0601)
-#else()
-#add_compile_options(-Wall -Wextra -O2)
-#endif()
 add_compile_options(
     -wd4251 # needs to have dll-interface
     -wd4275 # non dll-interface class used as base for dll-interface class
 )
-
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 set(SOURCES
     src/glad.c
@@ -42,25 +31,33 @@ set(SOURCES
     ssbp/Common/Helper/DebugPrint.cpp
 )
 
-include_directories(
-    include
-    ${ImageMagick_INCLUDE_DIRS}
-)
-
-link_libraries(
-    opengl32
-    glfw
-    glm::glm
-    ${ImageMagick_LIBRARIES}
-)
-
 add_executable(${PROJECT}
     ${SOURCES}
     src/main.cpp
 )
-set_target_properties(${PROJECT} PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}"
-    RUNTIME_OUTPUT_DIRECTORY_DEBUG "${PROJECT_SOURCE_DIR}"#"${CMAKE_BINARY_DIR}"
-    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${PROJECT_SOURCE_DIR}"
-    DEBUG_POSTFIX "_d"
+
+target_include_directories(${PROJECT} PRIVATE
+    ${PROJECT_SOURCE_DIR}
+    include
+    ${ImageMagick_INCLUDE_DIRS}
+)
+
+target_link_libraries(${PROJECT}
+    opengl32
+    glfw
+    glm::glm
+
+    debug
+        "${ImageMagick_LIBRARIES_DEBUG}"
+    optimized
+        "${ImageMagick_LIBRARIES}"
+)
+
+set_target_properties(${PROJECT} PROPERTIES DEBUG_POSTFIX "_d")
+add_custom_command(
+    TARGET ${PROJECT} POST_BUILD
+    #COMMAND $<IF:$<PLATFORM_ID:Windows>,dir,ls> "${ImageMagick_INCLUDE_DIRS}/.."
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_SOURCE_DIR}/bin/shaders/"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:${PROJECT}>" "${PROJECT_SOURCE_DIR}/bin"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PROJECT_SOURCE_DIR}/shaders/background.frag" "${PROJECT_SOURCE_DIR}/shaders/background.vert" "${PROJECT_SOURCE_DIR}/shaders/sprite.frag" "${PROJECT_SOURCE_DIR}/shaders/sprite.vert" "${PROJECT_SOURCE_DIR}/bin/shaders/"
 )

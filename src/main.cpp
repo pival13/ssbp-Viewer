@@ -35,7 +35,7 @@ glm::vec3 mover(0.0f, -0.5f, 0.0f); // camera position
 // Map window coordinate (0~WIN_WIDTH,0~WIN_HEIGHT) with OpenGL coordinate (-1~1)
 glm::vec3 scale(2.0f / WIN_WIDTH, 2.0f / WIN_HEIGHT, 1.0f); // camera view scale
 
-void saveScreenshots();
+void screenshotThread();
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int modifier);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
@@ -102,7 +102,7 @@ int main(int argc, char* argv[]) {
 
         std::cout << help << '\n' << sprite.file_name << "\nNumber of animations: " << sprite.animation_list.size() << "\n\n" << sprite.ssPlayer->getPlayAnimeName() << std::endl;
 
-        std::thread fileSaver(saveScreenshots);
+        std::thread fileSaver(screenshotThread);
 
         // render loop
         while (!glfwWindowShouldClose(window)) {
@@ -153,7 +153,7 @@ void draw(GLFWwindow* window) {
     glfwSwapBuffers(window);
 }
 
-void saveScreenshots()
+void screenshotThread()
 {
     while (window != nullptr || !savers.empty()) {
         if (savers.empty())
@@ -287,7 +287,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         break;
     // Prev animation
     case GLFW_KEY_RIGHT:
-    case GLFW_KEY_S:
+    case GLFW_KEY_D:
         if (action == GLFW_PRESS) {
             sprite.previous_anim();
             std::cout << '\n' << sprite.get_anim_name() << std::endl;
@@ -295,7 +295,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         break;
     // Next frame
     case GLFW_KEY_UP:
-    case GLFW_KEY_PERIOD:
+    case GLFW_KEY_W:
         if (action == GLFW_PRESS || action == GLFW_REPEAT) {
             unsigned int max_frame = sprite.ssPlayer->getMaxFrame() - 1;
             sprite.pause();
@@ -309,7 +309,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         break;
     // Previous frame
     case GLFW_KEY_DOWN:
-    case GLFW_KEY_COMMA:
+    case GLFW_KEY_S:
         if (action == GLFW_PRESS || action == GLFW_REPEAT) {
             sprite.pause();
             if (modifier == GLFW_MOD_SHIFT) {
@@ -373,7 +373,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             key_save_screen();
         break;
     // Save animation
-    case GLFW_KEY_W:
+    case GLFW_KEY_E:
         if (action == GLFW_PRESS)
             key_save_animation();
         break;
