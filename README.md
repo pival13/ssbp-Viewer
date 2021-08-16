@@ -43,6 +43,11 @@ SsbpViewer is a small program that recreate a ssbp animation when given the corr
 
 Loading an animation can either be done at start time, by specifying the path to the ssbp file, or at run time by dropping an ssbp file and pressing enter.
 
+SsbpViewer also support the following options:
+* `-b arg`, `--bind=arg`: Change the content of a part, depending on the format of `arg`:
+* * `partName:imagePath`: Change the sprite used on the part `partName` by the corresponding sprite on the image at `imagePath`. Images must be on PNG or WEBP format.
+* * `partName:ssbp:animeName`: Force the part `partName` to use the animation `animeName` describe on the ssbp file at `ssbp`. `ssbp` can be the path to the file, or its name (without extension) if it as already been described. If omitted, `ssbp` default to the current ssbp file.
+
 Once an animation file have been loaded several interactions are available.
 * Change the animation played: right and left arrows, or the A and D keys.
 * Change the animation speed: 1 to slow down and 2 to speed up. 3 to reset.

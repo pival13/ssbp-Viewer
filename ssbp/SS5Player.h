@@ -999,6 +999,8 @@ public:
     */
     void setPartCell(std::string partsname, std::string sscename, std::string cellname);
 
+    void setPartAnime(std::string partsname, std::string dataKey, std::string animename, Instance *param);
+
     /*
     * プレイヤー本体の位置を設定します。
     */

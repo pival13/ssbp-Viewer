@@ -888,8 +888,8 @@ public:
      */
     AnimeRef* getReference(const std::string& animeName)
     {
-        AnimeRef* ref = _dic.at(animeName);
-        return ref;
+        auto it = _dic.find(animeName);
+        return it != _dic.end() ? it->second : nullptr;
     }
 
     void dump(std::vector<std::string>* anim_list)
@@ -1171,8 +1171,8 @@ void ResourceManager::removeAllData()
 
 ResourceSet* ResourceManager::getData(const std::string & dataKey)
 {
-    ResourceSet* rs = _dataDic.at(dataKey);
-    return rs;
+    auto it = _dataDic.find(dataKey);
+    return it != _dataDic.end() ? it->second : nullptr;
 }
 
 //データ名、セル名を指定して、セルで使用しているテクスチャを変更する
@@ -2030,6 +2030,37 @@ void Player::setPartCell(std::string partsname, std::string sscename, std::strin
     }
 }
 
+//Change the animation assigned to the part
+void Player::setPartAnime(std::string partsname, std::string datakey, std::string animename, Instance *param)
+{
+    if (!_currentAnimeRef)
+        return;
+
+    ToPointer ptr(_currentRs->data);
+    const AnimePackData* packData = _currentAnimeRef->animePackData;
+    const PartData* parts = static_cast<const PartData*>(ptr(packData->parts));
+
+    for (int index = 0; index < packData->numParts; index++)
+    {
+        int partIndex = _partIndex[index];
+        const PartData* part = &parts[partIndex];
+        const char* partName = static_cast<const char*>(ptr(part->name));
+        if (strcmp(partName, partsname.c_str()) == 0)
+        {
+            CustomSprite* sprite = static_cast<CustomSprite*>(_parts.at(partIndex));
+            SS_SAFE_DELETE(sprite->_ssplayer);
+            sprite->_ssplayer = ss::Player::create();
+            sprite->_ssplayer->setData(datakey);
+            sprite->_ssplayer->play(animename);
+            if (param)
+                sprite->_ssplayer->setInstanceParam(true, *param);
+            sprite->_ssplayer->animeResume();
+            sprite->_liveFrame = 0;
+            break;
+        }
+    }
+}
+
 // インスタンスパーツが再生するアニメを変更します。
 bool Player::changeInstanceAnime(std::string partsname, std::string animename, bool overWrite, Instance keyParam)
 {
@@ -2588,7 +2619,7 @@ void Player::setFrame(int frameNo)
 
 
         //インスタンスパーツの場合
-        if (partData->type == PARTTYPE_INSTANCE)
+        if (sprite->_ssplayer)
         {
             bool overWrite;
             Instance keyParam;
@@ -2604,48 +2635,51 @@ void Player::setFrame(int frameNo)
             bool pingpong = false;
             bool independent = false;
 
-            if (flags & PART_FLAG_INSTANCE_KEYFRAME)
+            if (partData->type == PARTTYPE_INSTANCE)
             {
-                refKeyframe = reader.readS16();
-            }
-            if (flags & PART_FLAG_INSTANCE_START)
-            {
-                refStartframe = reader.readS16();
-            }
-            if (flags & PART_FLAG_INSTANCE_END)
-            {
-                refEndframe = reader.readS16();
-            }
-            if (flags & PART_FLAG_INSTANCE_SPEED)
-            {
-                refSpeed = reader.readFloat();
-            }
-            if (flags & PART_FLAG_INSTANCE_LOOP)
-            {
-                refloopNum = reader.readS16();
-            }
-            if (flags & PART_FLAG_INSTANCE_LOOP_FLG)
-            {
-                int lflags = reader.readS16();
-                if (lflags & INSTANCE_LOOP_FLAG_INFINITY )
+                if (flags & PART_FLAG_INSTANCE_KEYFRAME)
                 {
-                    //無限ループ
-                    infinity = true;
+                    refKeyframe = reader.readS16();
                 }
-                if (lflags & INSTANCE_LOOP_FLAG_REVERSE)
+                if (flags & PART_FLAG_INSTANCE_START)
                 {
-                    //逆再生
-                    reverse = true;
+                    refStartframe = reader.readS16();
                 }
-                if (lflags & INSTANCE_LOOP_FLAG_PINGPONG)
+                if (flags & PART_FLAG_INSTANCE_END)
                 {
-                    //往復
-                    pingpong = true;
+                    refEndframe = reader.readS16();
                 }
-                if (lflags & INSTANCE_LOOP_FLAG_INDEPENDENT)
+                if (flags & PART_FLAG_INSTANCE_SPEED)
                 {
-                    //独立
-                    independent = true;
+                    refSpeed = reader.readFloat();
+                }
+                if (flags & PART_FLAG_INSTANCE_LOOP)
+                {
+                    refloopNum = reader.readS16();
+                }
+                if (flags & PART_FLAG_INSTANCE_LOOP_FLG)
+                {
+                    int lflags = reader.readS16();
+                    if (lflags & INSTANCE_LOOP_FLAG_INFINITY )
+                    {
+                        //無限ループ
+                        infinity = true;
+                    }
+                    if (lflags & INSTANCE_LOOP_FLAG_REVERSE)
+                    {
+                        //逆再生
+                        reverse = true;
+                    }
+                    if (lflags & INSTANCE_LOOP_FLAG_PINGPONG)
+                    {
+                        //往復
+                        pingpong = true;
+                    }
+                    if (lflags & INSTANCE_LOOP_FLAG_INDEPENDENT)
+                    {
+                        //独立
+                        independent = true;
+                    }
                 }
             }
             //インスタンスパラメータを上書きする
@@ -2733,7 +2767,7 @@ void Player::setFrame(int frameNo)
 
             //インスタンスパラメータを設定
             sprite->_ssplayer->set_InstanceAlpha(opacity);
-            sprite->_ssplayer->set_InstanceRotation(rotationX, rotationY, rotationZ);
+            //sprite->_ssplayer->set_InstanceRotation(rotationX, rotationY, rotationZ);
             sprite->_ssplayer->setColor(_col_r, _col_g, _col_b);
 
             //インスタンス用SSPlayerに再生フレームを設定する

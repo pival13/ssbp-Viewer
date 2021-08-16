@@ -19,10 +19,10 @@ class SSPoint;
 #define SS_ASSERT2(cond, msg) if (!(cond)) throw std::runtime_error(msg)
 
 #ifdef _DEBUG
-    #define SSLOG(...)       printf(__VA_ARGS__)
-    #define SSLOGERROR(format,...)  do {} while (0)
+    #define SSLOG(format,...)       printf(format"\n", __VA_ARGS__)
+    #define SSLOGERROR(format,...)  printf("Error: "format"\n", __VA_ARGS__)
 #else
-    #define SSLOG(...)       do {} while (0)
+    #define SSLOG(format,...)       do {} while (0)
     #define SSLOGERROR(format,...)  do {} while (0)
 #endif
 

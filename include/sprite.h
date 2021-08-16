@@ -18,6 +18,7 @@ public:
     ss::ResourceManager* resman; // ^
     std::vector<Texture*> textures;
     std::vector<std::string> animation_list;
+    std::map<std::string, std::pair<std::string, std::string>> overrided_parts;
     std::string file_name;
     std::string file_dir;
     std::string dir;
