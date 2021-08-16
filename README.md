@@ -45,8 +45,8 @@ Loading an animation can either be done at start time, by specifying the path to
 
 SsbpViewer also support the following options:
 * `-b arg`, `--bind=arg`: Change the content of a part, depending on the format of `arg`:
-* * `partName:imagePath`: Change the sprite used on the part `partName` by the corresponding sprite on the image at `imagePath`. Images must be on PNG or WEBP format.
-* * `partName:ssbp:animeName`: Force the part `partName` to use the animation `animeName` describe on the ssbp file at `ssbp`. `ssbp` can be the path to the file, or its name (without extension) if it as already been described. If omitted, `ssbp` default to the current ssbp file.
+  * ~~`partName:imagePath`: Change the sprite used on the part `partName` by the corresponding sprite on the image at `imagePath`. Images must be on PNG or WEBP format.~~ (Not yet supported)
+  * `partName:ssbp:animeName`: Force the part `partName` to use the animation `animeName` describe on the ssbp file at `ssbp`. `ssbp` can be the path to the file, or its name (without extension) if it as already been described. If omitted, `ssbp` default to the current ssbp file.
 
 Once an animation file have been loaded several interactions are available.
 * Change the animation played: right and left arrows, or the A and D keys.
@@ -68,6 +68,37 @@ The behaviour of the background can be changed by editing the `background.vert` 
 When saving an animation, the image is cropped to keep only the animation. Moreover, single frame are saved as PNG without background, while animation are saved as GIF with background, if available. The scale is kept and the position may lead to cropped image.<br>
 Screenshot are always saved on a `Screenshot` folder under the current working directory.
 
+### Example
+
+```bash
+# Basic command, Windows
+bin\ssbpViewer.exe images\ch00_00_Eclat_X_Avatar00_blow\ch00_00_Eclat_X_Avatar00_blow.ssbp
+
+# Weapon overload, Linux
+# Bind option is split on first and last colon (:), enabling the use of Windows absolute path
+# No spaces must be present around colon, unlike here
+bin/ssbpViewer \
+    ~/FehAssets/Common/Unit/ch00_03_Anna_F_Normal/ch00_03_Anna_F_Normal.ssbp \
+    -b \
+        Wep_BaseR:\
+        ~/FehAssets/Common/Wep/wep_ax009.ssbp:\
+        wep_ax009/Wep_Normal
+
+# Archer example, Windows
+# Archer's weapon are splitted as bow (wep_bw*) and arrow (wep_ar*)
+# Each of these must be set to the correct hand
+bin\ssbpViewer.exe
+  -b     Wep_BaseL:C:\{...}\FehAssets\Common\Wep\wep_bw053_up.ssbp:wep_bw053_up/Wep_Normal
+  --bind=Wep_BaseR:C:\{...}\FehAssets\Common\Wep\wep_ar006_up.ssbp:wep_ar006_up/Wep_Normal
+  C:\{...}\FehAssets\Common\Unit\ch01_28_Kleine_F_Normal\ch01_28_Kleine_F_Normal.ssbp
+
+# The same ssbp doesn't need to be loaded twice
+bin/ssbpViewer \
+    ~/FehAssets/Common/Unit/ch11_16_Ortina_FF_Pair/ch11_16_Ortina_FF_Pair.ssbp \
+    -b Wep_BaseR:~/FehAssets/Common/Wep/wep_ac009.ssbp:wep_ac009/Wep_Normal \
+    -b Wep_BaseL:wep_ac009:wep_ac009/Wep_Normal
+```
+
 ## TODO
 
 * Fix display error (e.g. Transformed F!Edelgard "Wings", Transformed Nifl Jump)
@@ -79,7 +110,7 @@ Screenshot are always saved on a `Screenshot` folder under the current working d
   * Substruct
   * Mult
 * Support additional elements
-  * Weapon
+  * ~~Weapon~~
   * Effect
   * Accessory
 * Support background
@@ -88,4 +119,4 @@ Screenshot are always saved on a `Screenshot` folder under the current working d
   * ~~Add background option~~
     * Change background option on command-line or runtime
   * Add foreground
-    * Change background on command-line or runtime
+    * Change foreground on command-line or runtime

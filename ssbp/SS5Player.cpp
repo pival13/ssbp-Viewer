@@ -1202,13 +1202,16 @@ int ResourceManager::getMaxFrame(std::string ssbpName, std::string animeName)
     int rc = -1;
 
     ResourceSet* rs = getData(ssbpName);
-    AnimeRef* animeRef = rs->animeCache->getReference(animeName);
-    if (animeRef == NULL)
+    if (rs != NULL)
     {
-        std::string msg = Format("Not found animation > anime=%s", animeName.c_str());
-        SS_ASSERT2(animeRef != NULL, msg.c_str());
+        AnimeRef* animeRef = rs->animeCache->getReference(animeName);
+        if (animeRef == NULL)
+        {
+            std::string msg = Format("Not found animation > anime=%s", animeName.c_str());
+            SS_ASSERT2(animeRef != NULL, msg.c_str());
+        }
+        rc = animeRef->animationData->numFrames;
     }
-    rc = animeRef->animationData->numFrames;
 
     return(rc);
 }
