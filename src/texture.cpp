@@ -1,4 +1,5 @@
 #include "texture.h"
+#include <filesystem>
 
 #ifdef _MSC_VER
 #pragma warning(disable: 4251)
@@ -11,6 +12,11 @@
 #include <Magick++.h>
 
 void Texture::openFile() {
+    if (!std::filesystem::exists(file_name)) {
+        loaded = false;
+        std::cerr << "File \"" << file_name << "\" does not exist" << std::endl;
+        return;
+    }
     // load and generate the texture
     try {
         Magick::Image img(file_name);
@@ -50,23 +56,7 @@ void Texture::openFile() {
 
         loaded = true;
     } catch (const std::exception &e) {
-        retry();
-    }
-}
-
-void Texture::retry() {
-    if (times_failed < 3 && last_slash != 2) {
-        if (times_failed == 0) {
-            last_slash = file_name.find_last_of("/\\");
-            file = file_name.substr(last_slash + 1);
-        }
-        last_slash = file_name.find_last_of("/\\", last_slash - 1);
-        file_name = file_name.substr(0, last_slash + 1) + file;
-        ++times_failed;
-        openFile();
-    }
-    else if ( message_on_fail ) {
-        std::cout << "\nFailed to load texture:  " << file << std::endl;
+        std::cerr << e.what() << std::endl;
     }
 }
 

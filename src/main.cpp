@@ -25,16 +25,21 @@
 #define WIN_HEIGHT 800
 #endif
 
+static GLFWwindow *window;
 Sprite sprite;
-Quad background; // the background quad/plane; has its own shader
-std::queue<std::function<void()>> savers;
-std::mutex saveMutex;
-GLFWwindow *window;
+static Quad background; // the background quad/plane; has its own shader
+static std::string backgroundPath;
 
-// Globals
-glm::vec3 mover(0.0f, -0.5f, 0.0f); // camera position
+static unsigned int windowWidth = WIN_WIDTH;
+static unsigned int windowHeight = WIN_HEIGHT;
+static float frame_rate = 60.0f;
+
+static glm::vec3 mover(0.0f, -0.5f, 0.0f); // camera position
 // Map window coordinate (0~WIN_WIDTH,0~WIN_HEIGHT) with OpenGL coordinate (-1~1)
-glm::vec3 scale(2.0f / WIN_WIDTH, 2.0f / WIN_HEIGHT, 1.0f); // camera view scale
+static glm::vec3 scale(2.0f / WIN_WIDTH, 2.0f / WIN_HEIGHT, 1.0f); // camera view scale
+
+static std::queue<std::function<void()>> savers;
+static std::mutex saveMutex;
 
 void screenshotThread();
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -48,11 +53,7 @@ void draw(GLFWwindow* window);
 GLFWwindow *initOpenGL();
 std::string replace(const std::string &src, const std::string &what, const std::string &repl);
 
-unsigned int windowWidth = WIN_WIDTH;
-unsigned int windowHeight = WIN_HEIGHT;
-float frame_rate = 60.0f;
-
-std::string help = // hotkeys
+static std::string help = // hotkeys
 "\nA: previous animation\n"
 "S: next animation\n"
 "L: toggle animation loop\n"
@@ -69,6 +70,7 @@ int main(int argc, char* argv[]) {
     sprite.dir = replace(argv[0], "\\", "/");
     sprite.dir = sprite.dir.substr(0, sprite.dir.rfind("/") + 1);
     sprite.resman = ss::ResourceManager::getInstance();
+    backgroundPath = sprite.dir + "background.png";
 
     std::vector<std::string> shader_name_list{
         sprite.dir + "shaders/sprite.vert",
@@ -91,7 +93,7 @@ int main(int argc, char* argv[]) {
         // initialize shaders & geometry
         sprite.init(shader_name_list[0], shader_name_list[1]);
         background.init(shader_name_list[2], shader_name_list[3]);
-        background.texture = new Texture((sprite.dir + "images/background.png").c_str(), false); // load background image
+        background.texture = new Texture(backgroundPath.c_str(), true); // load background image
 
         sprite.ssPlayer = ss::Player::create(sprite.resman);
 
@@ -197,7 +199,7 @@ void handleArguments(int argc, char **argv) {
     for (int i = 1; i != argc; ++i, ++argv) {
         if ((i != argc-1 && strcmp(*argv, "-b") == 0) || strncmp(*argv, "--bind=", 7) == 0) {
             const char *arg;
-            if (strcmp(*argv, "-b") == 0) {
+            if (strncmp(*argv, "--", 2) != 0) {
                 arg = *(++argv); ++i;
             } else
                 arg = *argv + 7;
@@ -213,6 +215,28 @@ void handleArguments(int argc, char **argv) {
                 }
                 sprite.overrided_parts[replace(part, "\\", "/")] = {replace(ssbp, "\\", "/"), replace(newElem, "\\", "/")};
             }
+        } else if ((i != argc-1 && strcmp(*argv, "-bg") == 0) || strncmp(*argv, "--background=", 13) == 0) {
+            const char *arg;
+            if (strncmp(*argv, "--", 2) != 0) {
+                arg = *(++argv); ++i;
+            } else
+                arg = *argv + 13;
+            backgroundPath = arg;
+        } else if ((i != argc-1 && strcmp(*argv, "-p") == 0) || strncmp(*argv, "--position=", 11) == 0) {
+            const char *arg;
+            if (strncmp(*argv, "--", 2) != 0) {
+                arg = *(++argv); ++i;
+            } else
+                arg = *argv + 11;
+            std::cmatch m;
+            if (!std::regex_match(arg, m, std::regex(R"((-?\d+|-?\d*\.\d+)(px|%|),(-?\d+|-?\d*\.\d+)(px|%|))"))) {
+                std::cerr << "Invalid argument " << arg << " for position" << std::endl;
+                continue;
+            }
+            float v1 = (float)atof(m[1].first);
+            float v2 = (float)atof(m[3].first);
+            mover.x = v1 / (*m[2].first == 'p' ? windowWidth : *m[2].first == '%' ? 100 : 1) * 2 - 1;
+            mover.y = v2 / (*m[4].first == 'p' ? windowHeight : *m[4].first == '%' ? 100 : 1) * 2 - 1;
         } else
             sprite.file_name = replace(*argv, "\\", "/");
     }

@@ -47,6 +47,9 @@ SsbpViewer also support the following options:
 * `-b arg`, `--bind=arg`: Change the content of a part, depending on the format of `arg`:
   * ~~`partName:imagePath`: Change the sprite used on the part `partName` by the corresponding sprite on the image at `imagePath`. Images must be on PNG or WEBP format.~~ (Not yet supported)
   * `partName:ssbp:animeName`: Force the part `partName` to use the animation `animeName` describe on the ssbp file at `ssbp`. `ssbp` can be the path to the file, or its name (without extension) if it as already been described. If omitted, `ssbp` default to the current ssbp file.
+* `-bg arg`, `--background=arg`: Change the image used as background. Defaults to a `background.png` file on the binary folder. If the image is not loaded, no background are used.
+  * The behaviour of the background can be changed by editing the `background.vert` file, situated on the `shaders` folder at the root of the program's folder. More instructions are available there.
+* `-p arg`, `--position=arg`: Set the initial position of the element to draw. The position must be of format: `posX,posY`, where `posX` and `posY` can be any real, optionnaly followed by `px` or `%`. 0 is meant for the bottom and left side, while 1 is used for the top and right side. Defaults to `0.5,0.25`.
 
 Once an animation file have been loaded several interactions are available.
 * Change the animation played: right and left arrows, or the A and D keys.
@@ -60,10 +63,6 @@ Once an animation file have been loaded several interactions are available.
 * Reset animation scale and position: C key.
 * Save animation: Q for a single frame, E for the whole animation.
 * Show help: H key.
-
-SsbpViewer is able to load a background to be displayed behind the animation.<br>
-Currently, if there is a file named `background.png` on an `images` folder at the root of the program's folder, this image will be used as the background.<br>
-The behaviour of the background can be changed by editing the `background.vert` file, situated on the `shaders` folder at the root of the program's folder. More instructions are available there.
 
 When saving an animation, the image is cropped to keep only the animation. Moreover, single frame are saved as PNG without background, while animation are saved as GIF with background, if available. The scale is kept and the position may lead to cropped image.<br>
 Screenshot are always saved on a `Screenshot` folder under the current working directory.
