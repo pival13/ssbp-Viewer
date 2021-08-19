@@ -45,7 +45,7 @@ Loading an animation can either be done at start time, by specifying the path to
 
 SsbpViewer also support the following options:
 * `-b arg`, `--bind=arg`: Change the content of a part, depending on the format of `arg`:
-  * ~~`partName:imagePath`: Change the sprite used on the part `partName` by the corresponding sprite on the image at `imagePath`. Images must be on PNG or WEBP format.~~ (Not yet supported)
+  * `partName:imagePath`: Change the sprite used on the part `partName` by the corresponding sprite on the image at `imagePath`. Images must be on PNG or WEBP format.
   * `partName:ssbp:animeName`: Force the part `partName` to use the animation `animeName` describe on the ssbp file at `ssbp`. `ssbp` can be the path to the file, or its name (without extension) if it as already been described. If omitted, `ssbp` default to the current ssbp file.
 * `-bg arg`, `--background=arg`: Change the image used as background. Defaults to a `background.png` file on the binary folder. If the image is not loaded, no background are used.
   * The behaviour of the background can be changed by editing the `background.vert` file, situated on the `shaders` folder at the root of the program's folder. More instructions are available there.
@@ -83,6 +83,12 @@ bin/ssbpViewer \
         ~/FehAssets/Common/Wep/wep_ax009.ssbp:\
         wep_ax009/Wep_Normal
 
+bin/ssbpViewer \
+    ~/FehAssets/Common/Unit/ch00_03_Anna_F_Normal/ch00_03_Anna_F_Normal.ssbp \
+    -b \
+        Wep_BaseR:\
+        ~/FehAssets/Common/Wep/wep_ax002.png
+
 # Archer example, Windows
 # Archer's weapon are splitted as bow (wep_bw*) and arrow (wep_ar*)
 # Each of these must be set to the correct hand
@@ -114,7 +120,7 @@ bin/ssbpViewer \
   * Accessory
 * Support background
   * ~~Add background~~
-    * Change background on command-line or runtime
+    * ~~Change background on command-line or runtime~~
   * ~~Add background option~~
     * Change background option on command-line or runtime
   * Add foreground

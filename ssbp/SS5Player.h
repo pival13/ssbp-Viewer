@@ -998,6 +998,8 @@ public:
     * @param  cellname          表示させたいセル名
     */
     void setPartCell(std::string partsname, std::string sscename, std::string cellname);
+    
+    void setPartTexture(std::string partsname, int textureHandle, int width, int height);
 
     void setPartAnime(std::string partsname, std::string dataKey, std::string animename, Instance *param);
 

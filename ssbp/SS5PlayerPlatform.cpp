@@ -113,6 +113,8 @@ namespace ss
     */
     void SSDrawSprite(State state)
     {
+        if (state.blendfunc != BLEND_MIX && state.blendfunc != BLEND_ADD)
+            std::cout << state.cellIndex << ": " << state.blendfunc << "," << state.colorBlendFunc << "," << state.colorBlendType << std::endl;
         sprite.shader.setInt("u_BlendType", state.blendfunc);
         if (state.blendfunc == BLEND_MIX)
             glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);

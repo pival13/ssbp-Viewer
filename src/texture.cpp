@@ -51,6 +51,7 @@ void Texture::openFile() {
         default:
             format = GL_RGB;
         }
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
         glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, pixel_array);
         glGenerateMipmap(GL_TEXTURE_2D);
 

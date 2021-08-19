@@ -317,37 +317,40 @@ void key_save_animation()
 
     int animFps = sprite.ssPlayer->getAnimFps();
     bool looping = sprite.is_looping();
-    for (int frame = 0; frame != sprite.ssPlayer->getMaxFrame(); ++frame) {
+    int nbFrame = sprite.ssPlayer->getMaxFrame();
+    for (int frame = 0; frame != nbFrame; ++frame) {
+        glfwPollEvents();
         // First draw to get size
+        SSLOG("%d / %d", frame, nbFrame);
         glClear(GL_COLOR_BUFFER_BIT);
         sprite.shader.use();
         sprite.ssPlayer->setFrameNo(frame);
         sprite.ssPlayer->update(0);
         sprite.draw();
         glReadPixels(vp[0], vp[1], vp[2], vp[3], GL_RGBA, GL_UNSIGNED_BYTE, image);
-        Magick::Geometry tmpSize = Magick::Image(vp[2], vp[3], "RGBA", Magick::CharPixel, image).boundingBox();
+        
+        Magick::Image img(vp[2], vp[3], "RGBA", Magick::CharPixel, image);
+        Magick::Geometry tmpSize = img.boundingBox();
         if (size[0].x > (size_t)tmpSize.xOff())             size[0].x = tmpSize.xOff();
         if (size[1].x < tmpSize.xOff()+tmpSize.width())     size[1].x = tmpSize.xOff()+tmpSize.width();
         if (size[0].y > (size_t)tmpSize.yOff())             size[0].y = tmpSize.yOff();
         if (size[1].y < tmpSize.yOff()+tmpSize.height())    size[1].y = tmpSize.yOff()+tmpSize.height();
 
         // Actual draw with background
-        glClear(GL_COLOR_BUFFER_BIT);
         if (background.texture->loaded) {
+            glClear(GL_COLOR_BUFFER_BIT);
             background.shader.use();
             background.shader.setTexture2D("u_Texture", background.texture->id);
             background.draw();
             sprite.shader.use();
             sprite.draw();
             glReadPixels(vp[0], vp[1], vp[2], vp[3], GL_RGBA, GL_UNSIGNED_BYTE, image);
+            img = Magick::Image(vp[2], vp[3], "RGBA", Magick::CharPixel, image);
         }
-
-        // Read image
-        Magick::Image img(vp[2], vp[3], "RGBA", Magick::CharPixel, image);
-        img.flip();
         glfwSwapBuffers(window);
 
         // Add image to GIF buffer
+        img.flip();
         img.gifDisposeMethod(MagickCore::DisposeType::BackgroundDispose);
         img.animationDelay(100 * frame / animFps - 100 * (frame-1) / animFps);
         img.animationIterations(looping ? 0 : 1);
@@ -374,7 +377,7 @@ void key_save_animation()
     std::filesystem::create_directories("Screenshots/" + sprite.file_name);
     std::unique_lock lock(saveMutex);
     savers.push([images,image,image_name]() {
-        std::cout << std::string(image_name) << std::endl;
+        std::cout << "Saving " << image_name << "..." << std::endl;
         Magick::writeImages(images->begin(), images->end(), image_name);
         delete[] image;
         delete images;
@@ -516,9 +519,14 @@ void applyArgument()
 {
     for (auto &[part, pair] : sprite.overrided_parts) {
         if (std::regex_search(pair.second, std::regex(R"(\.png$|\.webp$)"))) {
-            //sprite.ssPlayer->setPartCell(part, )
+            int textureId = -1;
+            for (size_t i = 0; i < sprite.textures.size() && sprite.textures[i]; ++i)
+                if (sprite.textures[i]->file_name == pair.second)
+                    textureId = i+1;
+            if (textureId == -1)
+                textureId = ss::SSTextureLoad(pair.second.c_str(), ss::SsTexWrapMode::clamp, ss::SsTexFilterMode::linear);
+            sprite.ssPlayer->setPartTexture(part, textureId, sprite.textures[textureId-1]->width, sprite.textures[textureId-1]->height);
         } else {
-            // Wep_BaseR
             std::string &ssbp = pair.first.empty() ? sprite.file_name : pair.first;
             if (ssbp.length() > 5 && strcmp(ssbp.c_str()+ssbp.length()-5, ".ssbp") == 0)
                 ssbp = sprite.resman->addData(replace(ssbp, "\\", "/"));

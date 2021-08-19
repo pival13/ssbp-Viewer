@@ -2033,6 +2033,35 @@ void Player::setPartCell(std::string partsname, std::string sscename, std::strin
     }
 }
 
+void Player::setPartTexture(std::string partsname, int textureHandle, int width, int height)
+{
+    if (!_currentAnimeRef)
+        return;
+
+    ToPointer ptr(_currentRs->data);
+    const AnimePackData* packData = _currentAnimeRef->animePackData;
+    const PartData* parts = static_cast<const PartData*>(ptr(packData->parts));
+
+    for (int index = 0; index < packData->numParts; ++index)
+    {
+        int partIndex = _partIndex[index];
+        const PartData* part = &parts[partIndex];
+        const char* partName = static_cast<const char*>(ptr(part->name));
+        if (strcmp(partName, partsname.c_str()) == 0)
+        {
+            CustomSprite* sprite = static_cast<CustomSprite*>(_parts.at(partIndex));
+            int cellIndex = sprite->_state.cellIndex;
+            CellRef* cellRef = cellIndex >= 0 ? _currentRs->cellCache->getReference(cellIndex) : nullptr;
+            if (cellRef) {
+                cellRef->texture.handle = textureHandle;
+                cellRef->texture.size_w = width;
+                cellRef->texture.size_h = height;
+            }
+            break;
+        }
+    }
+}
+
 //Change the animation assigned to the part
 void Player::setPartAnime(std::string partsname, std::string datakey, std::string animename, Instance *param)
 {
