@@ -1141,7 +1141,7 @@ std::string ResourceManager::addData(const std::string& ssbpFilepath, const std:
     if (it != _dataDic.end())
     {
         //登録されている場合は処理を行わない
-        std::string str = "";
+        std::string str = it->first;
         return str;
     }
 

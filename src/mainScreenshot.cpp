@@ -44,7 +44,7 @@ static std::mutex saveMutex;
 void screenshotThread();
 void save_screen();
 void save_animation();
-void handleArgument(char *arg);
+void handleArgument(const std::string &arg);
 void applyArgument();
 GLFWwindow *initOpenGL();
 std::string replace(const std::string &src, const std::string &what, const std::string &repl);
@@ -83,8 +83,14 @@ int main(int argc, char* argv[]) {
 
         // bin/ssbpViewer.exe $(ls ../BlueStacks/files/assets/Common/Unit/ch00_3*/*.ssbp | sed "s@../BlueStacks/@C:/ProgramData/BlueStacks_nxt/Engine/UserData/SharedFolder/@g")
         // render loop
-        for (char **arg = argv+1; arg - argv != argc; ++arg) {
-            handleArgument(*arg);
+        //for (char **arg = argv+1; arg - argv != argc; ++arg) {
+        while (true) {
+            std::string arg;
+            std::getline(std::cin, arg);
+            if (std::cin.eof())
+                break;
+
+            handleArgument(arg);
             std::this_thread::sleep_for(std::chrono::seconds(1));
             try {
                 sprite.file_name = sprite.resman->addData(sprite.file_name);
@@ -112,7 +118,7 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
-void handleArgument(char *arg) {
+void handleArgument(const std::string &arg) {
     sprite.file_name.clear();
     sprite.overrided_parts.clear();
     sprite.overrided_parts["Wep_BaseR"] = {"", "blank.png"};
@@ -120,30 +126,29 @@ void handleArgument(char *arg) {
     sprite.overrided_parts["Wep_BaseL"] = {"", "blank.png"};
     sprite.overrided_parts["Wep_BaseL_Add"] = {"", "blank.png"};
 
-    std::cmatch m;
-    while (arg && *arg)
-        if (std::regex_search(arg, m, std::regex("^[^,]{2}[^,:]*\\.ssbp"))) {
-            sprite.file_name = std::string(arg, m[0].length());
-            arg = arg + m[0].length() + (arg[m[0].length()] != '\0' ? 1 : 0);
-        } else if (std::regex_search(arg, m, std::regex("^[^,:]+?\\.png"))) {
-            backgroundPath = std::string(arg, m[0].length());
-            arg = arg + m[0].length() + (arg[m[0].length()] ? 1 : 0);
-        } else if (std::regex_search(arg, m, std::regex("^([^,:]+):([^,]+)"))) {
-            char *tmp = arg;
-            arg = tmp + m[0].length() + (tmp[m[0].length()] ? 1 : 0);
-            tmp[m[1].length()] = '\0';
-            tmp[m[0].length()] = '\0';
-            if (strrchr(m[2].first, ':') != nullptr && strchr(m[2].first, ':') < m[2].second) {
-                size_t pos = m[1].length();
-                while (strchr(tmp+pos+1, ':') && strchr(tmp+pos+1, ':') < m[2].second)
-                    pos = strchr(tmp+pos+1, ':') - tmp;
-                tmp[pos] = '\0';
-                sprite.overrided_parts[m[1]] = {m[2].first, tmp+pos+1};
+    #define readString R"#((?:(\S+)|"((?:[^"]|\\")+)"))#"
+
+    std::smatch m;
+    std::string tmp = arg;
+    while (!std::regex_match(tmp, std::regex("\\s*")))
+        if (std::regex_search(tmp, m, std::regex("^\\s*" readString)) && std::regex_search(m[1].str(), std::regex("\\.ssbp\"?$"))) {
+            sprite.file_name = m[1];
+            tmp = m.suffix();
+        } else if (std::regex_search(tmp, m, std::regex("^\\s*(?:-bg\\s+|--background(?:=|\\s+))" readString))) {
+            backgroundPath = m[1];
+            tmp = m.suffix();
+        } else if (std::regex_search(tmp, m, std::regex("^\\s*(?:-b\\s+|--bind(?:=|\\s+))" readString))) {
+            std::string bind = m[1];
+            tmp = m.suffix();
+            if (std::regex_match(bind, m, std::regex(R"(([^:]+):(.+(?:\.png|\.webp)))"))) {
+                sprite.overrided_parts[m[1]] = {"", m[2]};
+            } else if (std::regex_match(bind, m, std::regex(R"(([^:]+):(.+):([^:]+))"))) {
+                sprite.overrided_parts[m[1]] = {m[2], m[3]};
             } else
-                sprite.overrided_parts[m[1]].second = m[2];
+                std::cerr << "Invalid binding command \"" << bind << "\"" << std::endl;
         } else {
-            std::cerr << "Unknow arg " << arg << std::endl;
-            arg = strchr(arg, ','); if (arg) arg++;
+            std::cerr << "Invalid argument \"" << arg << "\"" << std::endl;
+            tmp = tmp.substr(tmp.find_first_of(" \t\n")+1);
         }
 }
 
