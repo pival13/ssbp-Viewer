@@ -59,6 +59,8 @@ namespace ss
         * プレイヤーはここで返した値とパーツのステータスを引数に描画を行います。
         */
         static long rc = 0;
+        if (sprite.textures.size() <= rc)
+            sprite.textures.resize(sprite.textures.size() * 2);
         sprite.textures[rc++] = new Texture(pszFileName);
 
         //SpriteStudioで設定されたテクスチャ設定を反映させるための分岐です。

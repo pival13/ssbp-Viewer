@@ -520,7 +520,7 @@ void applyArgument()
     for (auto &[part, pair] : sprite.overrided_parts) {
         if (std::regex_search(pair.second, std::regex(R"(\.png$|\.webp$)"))) {
             int textureId = -1;
-            for (size_t i = 0; i < sprite.textures.size() && sprite.textures[i]; ++i)
+            for (int i = 0; i < sprite.textures.size() && sprite.textures[i]; ++i)
                 if (sprite.textures[i]->file_name == pair.second)
                     textureId = i+1;
             if (textureId == -1)

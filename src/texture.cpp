@@ -14,7 +14,6 @@
 void Texture::openFile() {
     if (!std::filesystem::exists(file_name)) {
         loaded = false;
-        std::cerr << "File \"" << file_name << "\" does not exist" << std::endl;
         return;
     }
     // load and generate the texture
@@ -42,14 +41,14 @@ void Texture::openFile() {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         GLenum format;
         switch (nrChannels) {
-        case 1:
-            format = GL_RED;
+        case 3:
+            format = GL_RGB;
             break;
         case 4:
             format = GL_RGBA;
             break;
         default:
-            format = GL_RGB;
+            throw std::runtime_error("Unsupported format image");
         }
         glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
         glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, pixel_array);

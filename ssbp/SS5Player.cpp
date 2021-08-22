@@ -2916,6 +2916,8 @@ void Player::setFrame(int frameNo)
                     sprite->_ssplayer->setPosition(sprite->_mat[12], sprite->_mat[13]);
                     sprite->_ssplayer->setScale(sprite->_state.scaleX, sprite->_state.scaleY);
                     sprite->_ssplayer->setRotation(sprite->_state.rotationX, sprite->_state.rotationY, sprite->_state.rotationZ);
+                    sprite->_ssplayer->_state.scaleX *= sprite->_state.flipX ? -1 : 1;
+                    sprite->_ssplayer->_state.scaleY *= sprite->_state.flipY ? -1 : 1;
                 }
 
             }
