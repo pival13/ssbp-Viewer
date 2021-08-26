@@ -19,10 +19,10 @@
 #include "sprite.h"
 
 #ifndef WIN_WIDTH
-#define WIN_WIDTH 1200
+#define WIN_WIDTH 500
 #endif
 #ifndef WIN_HEIGHT
-#define WIN_HEIGHT 1000
+#define WIN_HEIGHT 500
 #endif
 
 static GLFWwindow *window;
@@ -97,13 +97,38 @@ int main(int argc, char* argv[]) {
             try {
                 sprite.file_name = sprite.resman->addData(sprite.file_name);
                 std::cout << "Loading data from " << sprite.file_name << std::endl;
-                sprite.ssPlayer->setData(sprite.file_name, nullptr);
-                sprite.ssPlayer->play("body_anim/Idle", 1);
+                std::vector<std::string> anims;
+                sprite.ssPlayer->setData(sprite.file_name, &anims);
                 sprite.ssPlayer->setGameFPS(frame_rate);
-                applyArgument();
-                sprite.ssPlayer->setFrameNo(0);
-                sprite.ssPlayer->update(0);
-                save_screen();
+                for (const auto &anim : anims) {
+                    if (anim.substr(0, 10) != "body_anim/" || anim == "body_anim/Start") {
+                        std::cout << "\33[1;30;103mIgnoring\33[0m " << anim << std::endl;
+                        continue;
+                    }
+                    std::cout << "Preparing " << anim << "..." << std::endl;
+                    sprite.ssPlayer->play(anim, 1);
+                    applyArgument();
+
+                    static const std::vector<std::string> firstFrame = {"body_anim/Idle", "body_anim/Ok"};
+                    static const std::vector<std::string> lastFrame = {"body_anim/Ready", "body_anim/Jump", "body_anim/Attack1", "body_anim/Attack2", "body_anim/Damage"};
+                    if (anim == "body_anim/Transform")
+                        if (std::regex_search(sprite.file_name, std::regex("Dragon|TransBattle|TransMap")))
+                            sprite.ssPlayer->setFrameNo(0);
+                        else
+                            sprite.ssPlayer->setFrameNo(sprite.resman->getMaxFrame(sprite.file_name, anim)-1);
+                    else if (std::find(firstFrame.begin(), firstFrame.end(), anim) != firstFrame.end())
+                        sprite.ssPlayer->setFrameNo(0);
+                    else if (std::find(lastFrame.begin(), lastFrame.end(), anim) != lastFrame.end())
+                        sprite.ssPlayer->setFrameNo(sprite.resman->getMaxFrame(sprite.file_name, anim)-1);
+                    else {
+                        sprite.ssPlayer->setFrameNo(0);
+                        sprite.ssPlayer->update(0);
+                        save_screen();
+                        sprite.ssPlayer->setFrameNo(sprite.resman->getMaxFrame(sprite.file_name, anim)-1);
+                    }
+                    sprite.ssPlayer->update(0);
+                    save_screen();
+                }
             } catch (const std::exception &e) {
                 std::cerr << e.what() << std::endl;
             }
@@ -164,31 +189,31 @@ void handleArgument(const std::string &arg) {
 
 void save_screen()
 {
-    std::cout << "Drawing" << std::flush;
+    _SSLOG("Drawing");
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     glClear(GL_COLOR_BUFFER_BIT);
     sprite.draw();
     //glfwSwapBuffers(window);
-    std::cout << ", allocating buffer" << std::flush;
+    _SSLOG(", allocating buffer");
     GLubyte* image = new GLubyte[windowWidth * windowHeight * 4];
-    std::cout << ", reading" << std::flush;
+    _SSLOG(", reading");
     glReadBuffer(GL_COLOR_ATTACHMENT0);
     glReadPixels(0, 0, windowWidth, windowHeight, GL_RGBA, GL_UNSIGNED_BYTE, image);
 
     // Reverse premultiplied alpha
-    std::cout << ", fixing alpha" << std::flush;
+    _SSLOG(", fixing alpha");
     for (int i = 0; i != windowWidth * windowHeight; ++i) {
         if (image[i*4+3] == 0) continue;
         image[i*4] = GLubyte(std::min(int(image[i*4] * 0xFF) / image[i*4+3], 0xFF));
         image[i*4+1] = GLubyte(std::min(int(image[i*4+1] * 0xFF) / image[i*4+3], 0xFF));
         image[i*4+2] = GLubyte(std::min(int(image[i*4+2] * 0xFF) / image[i*4+3], 0xFF));
     }
-    std::cout << ", creating image" << std::flush;
+    _SSLOG(", creating image");
     Magick::Image img(windowWidth, windowHeight, "RGBA", Magick::CharPixel, image);
     img.flip();
 
     // Remove empty borders
-    std::cout << ", getting bbox" << std::flush;
+    _SSLOG(", getting bbox");
     Magick::Geometry area = img.boundingBox();
     size_t extraW = 10 + area.width() / 10 * 10 - area.width();
     size_t extraH = 10 + area.height() / 10 * 10 - area.height();
@@ -198,13 +223,13 @@ void save_screen()
         area.xOff() - extraW / 2,
         area.yOff() - extraH / 2
     );
-    std::cout << ", cropping" << std::flush;
+    _SSLOG(", cropping");
     img.crop(geo);
 
     std::filesystem::create_directories("Screenshots/" + sprite.file_name);
     std::string image_name = "Screenshots/" + sprite.file_name + "/" + sprite.ssPlayer->getPlayAnimeName() +
                              "_" + std::to_string(sprite.ssPlayer->getFrameNo()) + ".png";
-    std::cout << ", saving" << std::endl;
+    SSLOG(", saving");
     std::unique_lock lock(saveMutex);
     savers.push([img,image,image_name]() {
         Magick::Image(img).write(image_name);
@@ -357,7 +382,7 @@ GLFWwindow *initOpenGL()
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     glGenRenderbuffers(1,&rbo);
     glBindRenderbuffer(GL_RENDERBUFFER, rbo);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, windowWidth, windowHeight);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, 2000, 2000);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, rbo);
 
     return window;

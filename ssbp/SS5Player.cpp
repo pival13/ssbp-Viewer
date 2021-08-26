@@ -1370,7 +1370,7 @@ bool Player::isFrameSkipEnabled() const
     return _frameSkipEnabled;
 }
 
-void Player::setData(const std::string& dataKey, std::vector<std::string>* anim_list = nullptr)
+void Player::setData(const std::string& dataKey, std::vector<std::string>* anim_list)
 {
     ResourceSet* rs = _resman->getData(dataKey);
     _currentdataKey = dataKey;
@@ -1384,9 +1384,9 @@ void Player::setData(const std::string& dataKey, std::vector<std::string>* anim_
     {
 //        releaseData();
         _currentRs = rs;
-        if(anim_list)
-            rs->animeCache->dump(anim_list);
     }
+    if(anim_list)
+        rs->animeCache->dump(anim_list);
 }
 
 void Player::releaseData()

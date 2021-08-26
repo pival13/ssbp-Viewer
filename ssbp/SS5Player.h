@@ -786,7 +786,7 @@ public:
      *
      * @param  dataKey  再生するデータのdataKey
      */
-    void setData(const std::string& dataKey, std::vector<std::string>* anim_list);
+    void setData(const std::string& dataKey, std::vector<std::string>* anim_list = nullptr);
 
     /**
      * 設定されているssbpデータを解放します.
