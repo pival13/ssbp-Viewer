@@ -33,10 +33,7 @@ static std::string backgroundPath;
 static unsigned int windowWidth = WIN_WIDTH;
 static unsigned int windowHeight = WIN_HEIGHT;
 static float frame_rate = 60.0f;
-
-static glm::vec3 mover(0.4f, -0.8f, 0.0f); // camera position
-// Map window coordinate (0~WIN_WIDTH,0~WIN_HEIGHT) with OpenGL coordinate (-1~1)
-static glm::vec3 scale(2.0f / WIN_WIDTH, 2.0f / WIN_HEIGHT, 1.0f); // camera view scale
+static GLuint fbo, rbo;
 
 static std::queue<std::function<void()>> savers;
 static std::mutex saveMutex;
@@ -79,7 +76,12 @@ int main(int argc, char* argv[]) {
         std::thread fileSaver(screenshotThread);
 
         sprite.shader.use();
-        sprite.shader.setMat4("u_View", glm::value_ptr(glm::scale(glm::translate(glm::mat4(1.0f), mover), scale)));
+        sprite.shader.setMat4("u_View", glm::value_ptr(
+            glm::scale(
+                glm::translate(
+                    glm::mat4(1.0f),
+                    glm::vec3(0.f, -0.5f, 0.f)),
+                glm::vec3(2.f / windowWidth, 2.f / windowHeight, 1.f))));
 
         // bin/ssbpViewer.exe $(ls ../BlueStacks/files/assets/Common/Unit/ch00_3*/*.ssbp | sed "s@../BlueStacks/@C:/ProgramData/BlueStacks_nxt/Engine/UserData/SharedFolder/@g")
         // render loop
@@ -121,10 +123,6 @@ int main(int argc, char* argv[]) {
 void handleArgument(const std::string &arg) {
     sprite.file_name.clear();
     sprite.overrided_parts.clear();
-    sprite.overrided_parts["Wep_BaseR"] = {"", "blank.png"};
-    sprite.overrided_parts["Wep_BaseR_Add"] = {"", "blank.png"};
-    sprite.overrided_parts["Wep_BaseL"] = {"", "blank.png"};
-    sprite.overrided_parts["Wep_BaseL_Add"] = {"", "blank.png"};
 
     #define readString R"#((?:(\S+)|"((?:[^"]|\\")+)"))#"
 
@@ -146,6 +144,18 @@ void handleArgument(const std::string &arg) {
                 sprite.overrided_parts[m[1]] = {m[2], m[3]};
             } else
                 std::cerr << "Invalid binding command \"" << bind << "\"" << std::endl;
+        } else if (std::regex_search(tmp, m, std::regex("^\\s*(?:-w\\s+|--width(?:=|\\s+))(\\d+)"))) {
+            windowWidth = std::stoul(m[1]);
+            glViewport(0, 0, windowWidth, windowHeight);            
+            sprite.shader.use();
+            sprite.shader.setMat4("u_View", glm::value_ptr(glm::scale(glm::translate(glm::mat4(1.0f),glm::vec3(0.f, -0.5f, 0.f)),glm::vec3(2.f / windowWidth, 2.f / windowHeight, 1.f))));
+            tmp = m.suffix();
+        } else if (std::regex_search(tmp, m, std::regex("^\\s*(?:-h\\s+|--height(?:=|\\s+))(\\d+)"))) {
+            windowHeight = std::stoul(m[1]);
+            glViewport(0, 0, windowWidth, windowHeight);
+            sprite.shader.use();
+            sprite.shader.setMat4("u_View", glm::value_ptr(glm::scale(glm::translate(glm::mat4(1.0f),glm::vec3(0.f, -0.5f, 0.f)),glm::vec3(2.f / windowWidth, 2.f / windowHeight, 1.f))));
+            tmp = m.suffix();
         } else {
             std::cerr << "Invalid argument \"" << arg << "\"" << std::endl;
             tmp = tmp.substr(tmp.find_first_of(" \t\n")+1);
@@ -154,29 +164,27 @@ void handleArgument(const std::string &arg) {
 
 void save_screen()
 {
-    std::cout << "Getting viewport" << std::flush;
-    GLint vp[4];
-    glGetIntegerv(GL_VIEWPORT, vp);
-
-    std::cout << ", drawing" << std::flush;
+    std::cout << "Drawing" << std::flush;
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     glClear(GL_COLOR_BUFFER_BIT);
     sprite.draw();
     //glfwSwapBuffers(window);
     std::cout << ", allocating buffer" << std::flush;
-    GLubyte* image = new GLubyte[vp[2] * vp[3] * 4];
+    GLubyte* image = new GLubyte[windowWidth * windowHeight * 4];
     std::cout << ", reading" << std::flush;
-    glReadPixels(vp[0], vp[1], vp[2], vp[3], GL_RGBA, GL_UNSIGNED_BYTE, image);
+    glReadBuffer(GL_COLOR_ATTACHMENT0);
+    glReadPixels(0, 0, windowWidth, windowHeight, GL_RGBA, GL_UNSIGNED_BYTE, image);
 
     // Reverse premultiplied alpha
     std::cout << ", fixing alpha" << std::flush;
-    for (int i = 0; i != vp[2] * vp[3]; ++i) {
+    for (int i = 0; i != windowWidth * windowHeight; ++i) {
         if (image[i*4+3] == 0) continue;
         image[i*4] = GLubyte(std::min(int(image[i*4] * 0xFF) / image[i*4+3], 0xFF));
         image[i*4+1] = GLubyte(std::min(int(image[i*4+1] * 0xFF) / image[i*4+3], 0xFF));
         image[i*4+2] = GLubyte(std::min(int(image[i*4+2] * 0xFF) / image[i*4+3], 0xFF));
     }
     std::cout << ", creating image" << std::flush;
-    Magick::Image img(vp[2], vp[3], "RGBA", Magick::CharPixel, image);
+    Magick::Image img(windowWidth, windowHeight, "RGBA", Magick::CharPixel, image);
     img.flip();
 
     // Remove empty borders
@@ -218,7 +226,6 @@ void save_animation()
     bool looping = sprite.is_looping();
     int nbFrame = sprite.ssPlayer->getMaxFrame();
     for (int frame = 0; frame != nbFrame; ++frame) {
-        glfwPollEvents();
         // First draw to get size
         SSLOG("%d / %d", frame, nbFrame);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -246,7 +253,6 @@ void save_animation()
             glReadPixels(vp[0], vp[1], vp[2], vp[3], GL_RGBA, GL_UNSIGNED_BYTE, image);
             img = Magick::Image(vp[2], vp[3], "RGBA", Magick::CharPixel, image);
         }
-        glfwSwapBuffers(window);
 
         // Add image to GIF buffer
         img.flip();
@@ -333,7 +339,8 @@ GLFWwindow *initOpenGL()
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     // glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
-    GLFWwindow* window = glfwCreateWindow(WIN_WIDTH, WIN_HEIGHT, "SSBP Viewer", nullptr, nullptr);
+    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+    GLFWwindow* window = glfwCreateWindow(1, 1, "SSBP Saver", nullptr, nullptr);
     if (window == nullptr)
         throw std::runtime_error("Failed to create GLFW window");
     glfwMakeContextCurrent(window);
@@ -343,7 +350,15 @@ GLFWwindow *initOpenGL()
     // glad: load all OpenGL function pointers
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
         throw std::runtime_error("Failed to initialize GLAD");
+    glViewport(0, 0, windowWidth, windowHeight);
     glEnable(GL_BLEND);
+
+    glGenFramebuffers(1, &fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glGenRenderbuffers(1,&rbo);
+    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, windowWidth, windowHeight);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, rbo);
 
     return window;
 }

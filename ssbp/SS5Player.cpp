@@ -2334,8 +2334,8 @@ void Player::setFrame(int frameNo)
         state.z = z;
         state.pivotX = pivotX;
         state.pivotY = pivotY;
-        state.rotationX = rotationX;
-        state.rotationY = rotationY;
+        state.rotationX = 0.f;
+        state.rotationY = 0.f;
         state.rotationZ = rotationZ;
         state.scaleX = scaleX;
         state.scaleY = scaleY;
@@ -3027,12 +3027,16 @@ void Player::draw()
 */
     ToPointer ptr(_currentRs->data);
     const AnimePackData* packData = _currentAnimeRef->animePackData;
+    const PartData* parts = static_cast<const PartData*>(ptr(packData->parts));
 
     for (int index = 0; index < packData->numParts; index++)
     {
         int partIndex = _partIndex[index];
         //スプライトの表示
         CustomSprite* sprite = static_cast<CustomSprite*>(_parts.at(partIndex));
+
+        const char* name = static_cast<const char*>(ptr(parts[partIndex].name));
+
         if (sprite->_ssplayer)
         {
             if ((sprite->_state.isVisibled == true) && (sprite->_state.opacity > 0))
