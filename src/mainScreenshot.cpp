@@ -101,16 +101,20 @@ int main(int argc, char* argv[]) {
                 sprite.ssPlayer->setData(sprite.file_name, &anims);
                 sprite.ssPlayer->setGameFPS(frame_rate);
                 for (const auto &anim : anims) {
-                    if (anim.substr(0, 10) != "body_anim/" || anim == "body_anim/Start") {
-                        std::cout << "\33[1;30;103mIgnoring\33[0m " << anim << std::endl;
+                    static const std::vector<std::string> pairSubAnim = {"body_anim/Idle", "body_anim/Ok", "body_anim/Attack1", "body_anim/Damage"};// "body_anim/Start"
+                    if (anim.substr(0, 10) != "body_anim/" || anim == "body_anim/Start" || anim == "body_anim/Idle" || anim.substr(anim.size()-4) == "Loop" ||
+                        (anim == "body_anim/Pairpose" && sprite.file_name.substr(sprite.file_name.size()-4) != "Pair") ||
+                        (sprite.file_name.substr(sprite.file_name.size()-7) == "PairSub" && std::find(pairSubAnim.begin(), pairSubAnim.end(), anim) == pairSubAnim.end())) {
+                        std::cout << "  \33[1;30;103mIgnoring\33[0m " << anim << std::endl;
                         continue;
                     }
-                    std::cout << "Preparing " << anim << "..." << std::endl;
+                    std::cout << "  Preparing " << anim << "..." << std::endl;
+                    std::this_thread::sleep_for(std::chrono::seconds(1));
                     sprite.ssPlayer->play(anim, 1);
                     applyArgument();
 
-                    static const std::vector<std::string> firstFrame = {"body_anim/Idle", "body_anim/Ok"};
-                    static const std::vector<std::string> lastFrame = {"body_anim/Ready", "body_anim/Jump", "body_anim/Attack1", "body_anim/Attack2", "body_anim/Damage"};
+                    static const std::vector<std::string> firstFrame = {"body_anim/Idle", "body_anim/Ok", "body_anim/Pairpose"};
+                    static const std::vector<std::string> lastFrame = {"body_anim/Ready", "body_anim/Jump", "body_anim/Attack1", "body_anim/Attack2", "body_anim/AttackF", "body_anim/Damage"};
                     if (anim == "body_anim/Transform")
                         if (std::regex_search(sprite.file_name, std::regex("Dragon|TransBattle|TransMap")))
                             sprite.ssPlayer->setFrameNo(0);
@@ -120,11 +124,11 @@ int main(int argc, char* argv[]) {
                         sprite.ssPlayer->setFrameNo(0);
                     else if (std::find(lastFrame.begin(), lastFrame.end(), anim) != lastFrame.end())
                         sprite.ssPlayer->setFrameNo(sprite.resman->getMaxFrame(sprite.file_name, anim)-1);
+                    else if (anim == "body_anim/Cheer")
+                        sprite.ssPlayer->setFrameNo(sprite.resman->getMaxFrame(sprite.file_name, anim)/2);
                     else {
-                        sprite.ssPlayer->setFrameNo(0);
-                        sprite.ssPlayer->update(0);
-                        save_screen();
-                        sprite.ssPlayer->setFrameNo(sprite.resman->getMaxFrame(sprite.file_name, anim)-1);
+                        std::cout << "  \33[1;30;106mUnknow anim: \33[0m" << anim << std::endl;
+                        continue;
                     }
                     sprite.ssPlayer->update(0);
                     save_screen();
@@ -234,7 +238,7 @@ void save_screen()
     savers.push([img,image,image_name]() {
         Magick::Image(img).write(image_name);
         delete[] image;
-        std::cout << "Image saved: " << image_name << std::endl;
+        std::cout << "  > Image saved: " << image_name << std::endl;
     });
 }
 
@@ -311,7 +315,7 @@ void save_animation()
         Magick::writeImages(images->begin(), images->end(), image_name);
         delete[] image;
         delete images;
-        std::cout << "Animation saved: " << image_name << std::endl;
+        std::cout << "  > Animation saved: " << image_name << std::endl;
     });
 }
 
