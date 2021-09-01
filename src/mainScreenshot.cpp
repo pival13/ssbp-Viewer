@@ -35,21 +35,32 @@ static unsigned int windowHeight = WIN_HEIGHT;
 static float frame_rate = 60.0f;
 static GLuint fbo, rbo;
 
+static std::vector<uint8_t> buffer;
+
 static std::queue<std::function<void()>> savers;
 static std::mutex saveMutex;
 
+static const std::vector<std::string> pairSubAnim = {"body_anim/Idle", "body_anim/Start", "body_anim/Ok", "body_anim/Attack1", "body_anim/Attack1_Loop", "body_anim/Damage"};
+static const std::vector<std::string> usedSprite = {"body_anim/Idle", "body_anim/Ok", "body_anim/Ready", "body_anim/Jump", "body_anim/Attack1", "body_anim/Attack2", "body_anim/AttackF", "body_anim/Damage", "body_anim/Pairpose", "body_anim/Cheer", "body_anim/Transform"};
+                    
 void screenshotThread();
-void save_screen();
-void save_animation();
+
+// Return sprites without background, with background and their bounds
+std::tuple<std::vector<Magick::Image>, std::vector<Magick::Image>, std::vector<Magick::Geometry>> getAnimation(const std::string &anim);
+
+void saveSprite(Magick::Image image, const Magick::Geometry &bound, const std::string &name);
+void saveAnimation(std::vector<Magick::Image> images, const std::vector<Magick::Geometry> &bounds, const std::string &name);
+
 void handleArgument(const std::string &arg);
 void applyArgument();
 GLFWwindow *initOpenGL();
-std::string replace(const std::string &src, const std::string &what, const std::string &repl);
 
+std::string replace(std::string &src, char oldC, char newC) { std::replace(src.begin(), src.end(), oldC, newC); return src; }
+std::regex operator ""_r(const char *s, size_t l) {return std::regex(s, std::regex_constants::icase);}
 
 int main(int argc, char* argv[]) {
-    sprite.dir = replace(argv[0], "\\", "/");
-    sprite.dir = sprite.dir.substr(0, sprite.dir.rfind("/") + 1);
+    sprite.dir = argv[0];
+    sprite.dir = replace(sprite.dir, '\\', '/').substr(0, sprite.dir.rfind("/") + 1);
 
     sprite.resman = ss::ResourceManager::getInstance();
     backgroundPath = sprite.dir + "background.png";
@@ -61,17 +72,12 @@ int main(int argc, char* argv[]) {
         sprite.dir + "shaders/background.frag"
     };
 
-    sprite.overrided_parts["Wep_BaseR"] = {"", "a.png"};
-    sprite.overrided_parts["Wep_BaseL"] = {"", "a.png"};
-
+    buffer.resize(windowWidth * windowHeight * 4);
     try {
         window = initOpenGL();
 
         // initialize shaders & geometry
         sprite.init(shader_name_list[0], shader_name_list[1]);
-        //background.init(shader_name_list[2], shader_name_list[3]);
-        //background.texture = new Texture(backgroundPath.c_str(), true); // load background image
-
         sprite.ssPlayer = ss::Player::create(sprite.resman);
         std::thread fileSaver(screenshotThread);
 
@@ -83,9 +89,7 @@ int main(int argc, char* argv[]) {
                     glm::vec3(0.f, -0.5f, 0.f)),
                 glm::vec3(2.f / windowWidth, 2.f / windowHeight, 1.f))));
 
-        // bin/ssbpViewer.exe $(ls ../BlueStacks/files/assets/Common/Unit/ch00_3*/*.ssbp | sed "s@../BlueStacks/@C:/ProgramData/BlueStacks_nxt/Engine/UserData/SharedFolder/@g")
         // render loop
-        //for (char **arg = argv+1; arg - argv != argc; ++arg) {
         while (true) {
             std::string arg;
             std::getline(std::cin, arg);
@@ -101,38 +105,35 @@ int main(int argc, char* argv[]) {
                 sprite.ssPlayer->setData(sprite.file_name, &anims);
                 sprite.ssPlayer->setGameFPS(frame_rate);
                 for (const auto &anim : anims) {
-                    static const std::vector<std::string> pairSubAnim = {"body_anim/Idle", "body_anim/Ok", "body_anim/Attack1", "body_anim/Damage"};// "body_anim/Start"
-                    if (anim.substr(0, 10) != "body_anim/" || anim == "body_anim/Start" || anim == "body_anim/Idle" || anim.substr(anim.size()-4) == "Loop" ||
-                        (anim == "body_anim/Pairpose" && sprite.file_name.substr(sprite.file_name.size()-4) != "Pair") ||
-                        (sprite.file_name.substr(sprite.file_name.size()-7) == "PairSub" && std::find(pairSubAnim.begin(), pairSubAnim.end(), anim) == pairSubAnim.end())) {
-                        std::cout << "  \33[1;30;103mIgnoring\33[0m " << anim << std::endl;
-                        continue;
+                    if (!std::regex_match(anim, "body_anim/.*"_r) ||
+                        (std::regex_match(sprite.file_name, ".*_PairSub"_r) && std::find(pairSubAnim.begin(), pairSubAnim.end(), anim) == pairSubAnim.end()) ||
+                        (std::regex_match(sprite.file_name, ".*_PairMain"_r) && anim == "body_anim/Pairpose")) {
+                            std::cout << "  \33[1;30;103mIgnoring\33[0m " << anim << std::endl;
+                            continue;
                     }
-                    std::cout << "  Preparing " << anim << "..." << std::endl;
+                    std::cout << " " << anim << ": " << sprite.resman->getMaxFrame(sprite.file_name, anim) << " frames" << std::endl;
+                    auto [rgbas, rgbs, bounds] = getAnimation(anim);
+                    if (std::find(usedSprite.begin(), usedSprite.end(), anim) != usedSprite.end()) {
+                        int frame = sprite.resman->getMaxFrame(sprite.file_name, anim) - 1;
+                        if (anim == "body_anim/Cheer")
+                            frame /= 2;
+                        else if (anim == "body_anim/Idle" || anim == "body_anim/Ok" || anim == "body_anim/Pairpose")
+                            frame = 0;
+                        else if (anim == "body_anim/Transform" && std::regex_search(sprite.file_name, "Dragon|TransBattle|TransMap"_r))
+                            frame = 0;
+                        saveSprite(rgbas.at(frame), bounds.at(frame), "Screenshots/" + sprite.file_name + "/" + sprite.ssPlayer->getPlayAnimeName() + "_" + std::to_string(frame) + ".png");
+                    }
+                    saveAnimation(rgbs, bounds, "Screenshots/" + sprite.file_name + "/" + sprite.ssPlayer->getPlayAnimeName() + ".gif");
                     std::this_thread::sleep_for(std::chrono::seconds(1));
-                    sprite.ssPlayer->play(anim, 1);
-                    applyArgument();
-
-                    static const std::vector<std::string> firstFrame = {"body_anim/Idle", "body_anim/Ok", "body_anim/Pairpose"};
-                    static const std::vector<std::string> lastFrame = {"body_anim/Ready", "body_anim/Jump", "body_anim/Attack1", "body_anim/Attack2", "body_anim/AttackF", "body_anim/Damage"};
-                    if (anim == "body_anim/Transform")
-                        if (std::regex_search(sprite.file_name, std::regex("Dragon|TransBattle|TransMap")))
-                            sprite.ssPlayer->setFrameNo(0);
-                        else
-                            sprite.ssPlayer->setFrameNo(sprite.resman->getMaxFrame(sprite.file_name, anim)-1);
-                    else if (std::find(firstFrame.begin(), firstFrame.end(), anim) != firstFrame.end())
-                        sprite.ssPlayer->setFrameNo(0);
-                    else if (std::find(lastFrame.begin(), lastFrame.end(), anim) != lastFrame.end())
-                        sprite.ssPlayer->setFrameNo(sprite.resman->getMaxFrame(sprite.file_name, anim)-1);
-                    else if (anim == "body_anim/Cheer")
-                        sprite.ssPlayer->setFrameNo(sprite.resman->getMaxFrame(sprite.file_name, anim)/2);
-                    else {
-                        std::cout << "  \33[1;30;106mUnknow anim: \33[0m" << anim << std::endl;
-                        continue;
-                    }
-                    sprite.ssPlayer->update(0);
-                    save_screen();
                 }
+                sprite.overrided_parts = {
+                    {"Wep_BaseR", {"", "blank.png"}},
+                    {"Wep_BaseR_Add", {"", "blank.png"}},
+                    {"Wep_BaseL", {"", "blank.png"}},
+                    {"Wep_BaseL_Add", {"", "blank.png"}}
+                };
+                auto [rgbas, _, bounds] = getAnimation("body_anim/Idle");
+                saveSprite(rgbas.at(0), bounds.at(0), "Screenshots/" + sprite.file_name + "/Idle_no_wep.png");
             } catch (const std::exception &e) {
                 std::cerr << e.what() << std::endl;
             }
@@ -157,31 +158,35 @@ void handleArgument(const std::string &arg) {
 
     std::smatch m;
     std::string tmp = arg;
-    while (!std::regex_match(tmp, std::regex("\\s*")))
-        if (std::regex_search(tmp, m, std::regex("^\\s*" readString)) && std::regex_search(m[1].str(), std::regex("\\.ssbp\"?$"))) {
+    while (!std::regex_match(tmp, "\\s*"_r))
+        if (std::regex_search(tmp, m, "^\\s*" readString ""_r) && std::regex_search(m[1].str(), "\\.ssbp\"?$"_r)) {
             sprite.file_name = m[1];
             tmp = m.suffix();
-        } else if (std::regex_search(tmp, m, std::regex("^\\s*(?:-bg\\s+|--background(?:=|\\s+))" readString))) {
+        } else if (std::regex_search(tmp, m, "^\\s*(?:-bg\\s+|--background(?:=|\\s+))" readString ""_r)) {
             backgroundPath = m[1];
             tmp = m.suffix();
-        } else if (std::regex_search(tmp, m, std::regex("^\\s*(?:-b\\s+|--bind(?:=|\\s+))" readString))) {
+        } else if (std::regex_search(tmp, m, "^\\s*(?:-b\\s+|--bind(?:=|\\s+))" readString ""_r)) {
             std::string bind = m[1];
             tmp = m.suffix();
-            if (std::regex_match(bind, m, std::regex(R"(([^:]+):(.+(?:\.png|\.webp)))"))) {
+            if (std::regex_match(bind, m, R"(([^:]+):(.+(?:\.png|\.webp)))"_r)) {
                 sprite.overrided_parts[m[1]] = {"", m[2]};
-            } else if (std::regex_match(bind, m, std::regex(R"(([^:]+):(.+):([^:]+))"))) {
+            } else if (std::regex_match(bind, m, R"(([^:]+):(.+):([^:]+))"_r)) {
                 sprite.overrided_parts[m[1]] = {m[2], m[3]};
             } else
                 std::cerr << "Invalid binding command \"" << bind << "\"" << std::endl;
-        } else if (std::regex_search(tmp, m, std::regex("^\\s*(?:-w\\s+|--width(?:=|\\s+))(\\d+)"))) {
+        } else if (std::regex_search(tmp, m, "^\\s*(?:-w\\s+|--width(?:=|\\s+))(\\d+)"_r)) {
             windowWidth = std::stoul(m[1]);
-            glViewport(0, 0, windowWidth, windowHeight);            
+            glViewport(0, 0, windowWidth, windowHeight);
+            if (buffer.size() < windowHeight * windowWidth * 4)
+                buffer.resize(windowHeight * windowWidth * 4);
             sprite.shader.use();
             sprite.shader.setMat4("u_View", glm::value_ptr(glm::scale(glm::translate(glm::mat4(1.0f),glm::vec3(0.f, -0.5f, 0.f)),glm::vec3(2.f / windowWidth, 2.f / windowHeight, 1.f))));
             tmp = m.suffix();
-        } else if (std::regex_search(tmp, m, std::regex("^\\s*(?:-h\\s+|--height(?:=|\\s+))(\\d+)"))) {
+        } else if (std::regex_search(tmp, m, "^\\s*(?:-h\\s+|--height(?:=|\\s+))(\\d+)"_r)) {
             windowHeight = std::stoul(m[1]);
             glViewport(0, 0, windowWidth, windowHeight);
+            if (buffer.size() < windowHeight * windowWidth * 4)
+                buffer.resize(windowHeight * windowWidth * 4);
             sprite.shader.use();
             sprite.shader.setMat4("u_View", glm::value_ptr(glm::scale(glm::translate(glm::mat4(1.0f),glm::vec3(0.f, -0.5f, 0.f)),glm::vec3(2.f / windowWidth, 2.f / windowHeight, 1.f))));
             tmp = m.suffix();
@@ -191,138 +196,144 @@ void handleArgument(const std::string &arg) {
         }
 }
 
-void save_screen()
+static Magick::Geometry getBound(const Magick::Image &image)
+{
+    try {
+        Magick::Geometry area = image.boundingBox();
+        size_t extraW = 10 + area.width() / 10 * 10 - area.width();
+        size_t extraH = 10 + area.height() / 10 * 10 - area.height();
+        return Magick::Geometry(
+            area.width() + extraW,
+            area.height() + extraH,
+            area.xOff() - extraW / 2,
+            area.yOff() - extraH / 2
+        );
+    } catch (const std::exception &e) {
+        std::cerr << "Error: Empty image" << std::endl;
+        return Magick::Geometry("0x0");
+    }
+}
+
+static Magick::Geometry getBound(const std::vector<Magick::Geometry> &bounds)
+{
+    glm::u64mat2x2 size = glm::u64mat2x2(windowWidth, windowHeight, 0, 0);
+    for (const auto &bound : bounds) {
+        if (size[0].x > (size_t)bound.xOff())        size[0].x = bound.xOff();
+        if (size[1].x < bound.xOff()+bound.width())  size[1].x = bound.xOff()+bound.width();
+        if (size[0].y > (size_t)bound.yOff())        size[0].y = bound.yOff();
+        if (size[1].y < bound.yOff()+bound.height()) size[1].y = bound.yOff()+bound.height();
+    }
+    size_t extraW = 10 + (size[1].x - size[0].x) / 10 * 10 - (size[1].x - size[0].x);
+    size_t extraH = 10 + (size[1].y - size[0].y) / 10 * 10 - (size[1].y - size[0].y);
+    return Magick::Geometry(
+        size[1].x - size[0].x + extraW,
+        size[1].y - size[0].y + extraH,
+        size[0].x - extraW / 2,
+        size[0].y - extraH / 2
+    );
+}
+
+static Magick::Image getSprite(bool useBackground)
 {
     _SSLOG("Drawing");
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     glClear(GL_COLOR_BUFFER_BIT);
+    if (useBackground && background.texture && background.texture->loaded) {
+        background.shader.use();
+        background.shader.setTexture2D("u_Texture", background.texture->id);
+        background.draw();
+    }
+    sprite.shader.use();
     sprite.draw();
-    //glfwSwapBuffers(window);
-    _SSLOG(", allocating buffer");
-    GLubyte* image = new GLubyte[windowWidth * windowHeight * 4];
     _SSLOG(", reading");
     glReadBuffer(GL_COLOR_ATTACHMENT0);
-    glReadPixels(0, 0, windowWidth, windowHeight, GL_RGBA, GL_UNSIGNED_BYTE, image);
+    glReadPixels(0, 0, windowWidth, windowHeight, GL_RGBA, GL_UNSIGNED_BYTE, buffer.data());
 
     // Reverse premultiplied alpha
     _SSLOG(", fixing alpha");
     for (int i = 0; i != windowWidth * windowHeight; ++i) {
-        if (image[i*4+3] == 0) continue;
-        image[i*4] = GLubyte(std::min(int(image[i*4] * 0xFF) / image[i*4+3], 0xFF));
-        image[i*4+1] = GLubyte(std::min(int(image[i*4+1] * 0xFF) / image[i*4+3], 0xFF));
-        image[i*4+2] = GLubyte(std::min(int(image[i*4+2] * 0xFF) / image[i*4+3], 0xFF));
+        if (buffer[i*4+3] == 0) continue;
+        buffer[i*4] = GLubyte(std::min(int(buffer[i*4] * 0xFF) / buffer[i*4+3], 0xFF));
+        buffer[i*4+1] = GLubyte(std::min(int(buffer[i*4+1] * 0xFF) / buffer[i*4+3], 0xFF));
+        buffer[i*4+2] = GLubyte(std::min(int(buffer[i*4+2] * 0xFF) / buffer[i*4+3], 0xFF));
     }
     _SSLOG(", creating image");
-    Magick::Image img(windowWidth, windowHeight, "RGBA", Magick::CharPixel, image);
+    Magick::Image img = Magick::Image(windowWidth, windowHeight, "RGBA", Magick::CharPixel, buffer.data());
     img.flip();
+    
+    return img;
+}
 
-    // Remove empty borders
-    _SSLOG(", getting bbox");
-    Magick::Geometry area = img.boundingBox();
-    size_t extraW = 10 + area.width() / 10 * 10 - area.width();
-    size_t extraH = 10 + area.height() / 10 * 10 - area.height();
-    Magick::Geometry geo = Magick::Geometry(
-        area.width() + extraW,
-        area.height() + extraH,
-        area.xOff() - extraW / 2,
-        area.yOff() - extraH / 2
-    );
-    _SSLOG(", cropping");
-    img.crop(geo);
+std::tuple<std::vector<Magick::Image>, std::vector<Magick::Image>, std::vector<Magick::Geometry>>
+    getAnimation(const std::string &anim)
+{
+    sprite.ssPlayer->play(anim, 1);
+    applyArgument();
+    int animFps = sprite.ssPlayer->getAnimFps();
+    int nbFrame = sprite.ssPlayer->getMaxFrame();
 
-    std::filesystem::create_directories("Screenshots/" + sprite.file_name);
-    std::string image_name = "Screenshots/" + sprite.file_name + "/" + sprite.ssPlayer->getPlayAnimeName() +
-                             "_" + std::to_string(sprite.ssPlayer->getFrameNo()) + ".png";
-    SSLOG(", saving");
+    std::vector<Magick::Image> imagesRGB; imagesRGB.reserve(nbFrame);
+    std::vector<Magick::Image> imagesRGBA; imagesRGBA.reserve(nbFrame);
+    std::vector<Magick::Geometry> bounds; bounds.reserve(nbFrame);
+    for (int i = 0; i != nbFrame; ++i) {
+        sprite.ssPlayer->setFrameNo(i);
+        sprite.ssPlayer->update(0);
+        _SSLOG("Frame %d: ", i);
+        imagesRGB.emplace_back(getSprite(true));
+        _SSLOG(", ");
+        imagesRGBA.emplace_back(getSprite(false));
+        SSLOG("");
+        bounds.emplace_back(getBound(imagesRGBA.at(i)));
+        imagesRGBA.at(i).gifDisposeMethod(MagickCore::DisposeType::BackgroundDispose);
+        imagesRGB.at(i).gifDisposeMethod(MagickCore::DisposeType::BackgroundDispose);
+        imagesRGB.at(i).animationDelay(100 * i / animFps - 100 * (i-1) / animFps);
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    return std::make_tuple(imagesRGBA, imagesRGB, bounds);
+}
+
+void saveSprite(Magick::Image image, const Magick::Geometry &bound, const std::string &name)
+{
+    std::filesystem::create_directories(name.substr(0, name.find_last_of("/\\")));
+
+    image.crop(bound);
+
     std::unique_lock lock(saveMutex);
-    savers.push([img,image,image_name]() {
-        Magick::Image(img).write(image_name);
-        delete[] image;
-        std::cout << "  > Image saved: " << image_name << std::endl;
+    savers.push([image,name]() {
+        Magick::Image(image).write(name);
+        std::cout << "  > Image saved: " << name << std::endl;
     });
 }
 
-void save_animation()
+void saveAnimation(std::vector<Magick::Image> images, const std::vector<Magick::Geometry> &bounds, const std::string &name)
 {
-    GLint vp[4];
-    glGetIntegerv(GL_VIEWPORT, vp);
+    std::filesystem::create_directories(name.substr(0, name.find_last_of("/\\")));
+    std::string anim = name.substr(name.find_last_of("\\/")+1);
+    anim = anim.substr(0, anim.find_last_of('.'));
 
-    GLubyte* image = new GLubyte[vp[2] * vp[3] * 4];
-    std::vector<Magick::Image> *images = new std::vector<Magick::Image>(sprite.ssPlayer->getMaxFrame());
-    glm::u64mat2x2 size(vp[2], vp[3], 0, 0);
-
-    int animFps = sprite.ssPlayer->getAnimFps();
-    bool looping = sprite.is_looping();
-    int nbFrame = sprite.ssPlayer->getMaxFrame();
-    for (int frame = 0; frame != nbFrame; ++frame) {
-        // First draw to get size
-        SSLOG("%d / %d", frame, nbFrame);
-        glClear(GL_COLOR_BUFFER_BIT);
-        sprite.shader.use();
-        sprite.ssPlayer->setFrameNo(frame);
-        sprite.ssPlayer->update(0);
-        sprite.draw();
-        glReadPixels(vp[0], vp[1], vp[2], vp[3], GL_RGBA, GL_UNSIGNED_BYTE, image);
-        
-        Magick::Image img(vp[2], vp[3], "RGBA", Magick::CharPixel, image);
-        Magick::Geometry tmpSize = img.boundingBox();
-        if (size[0].x > (size_t)tmpSize.xOff())             size[0].x = tmpSize.xOff();
-        if (size[1].x < tmpSize.xOff()+tmpSize.width())     size[1].x = tmpSize.xOff()+tmpSize.width();
-        if (size[0].y > (size_t)tmpSize.yOff())             size[0].y = tmpSize.yOff();
-        if (size[1].y < tmpSize.yOff()+tmpSize.height())    size[1].y = tmpSize.yOff()+tmpSize.height();
-
-        // Actual draw with background
-        if (background.texture->loaded) {
-            glClear(GL_COLOR_BUFFER_BIT);
-            background.shader.use();
-            background.shader.setTexture2D("u_Texture", background.texture->id);
-            background.draw();
-            sprite.shader.use();
-            sprite.draw();
-            glReadPixels(vp[0], vp[1], vp[2], vp[3], GL_RGBA, GL_UNSIGNED_BYTE, image);
-            img = Magick::Image(vp[2], vp[3], "RGBA", Magick::CharPixel, image);
-        }
-
-        // Add image to GIF buffer
-        img.flip();
-        img.gifDisposeMethod(MagickCore::DisposeType::BackgroundDispose);
-        img.animationDelay(100 * frame / animFps - 100 * (frame-1) / animFps);
-        img.animationIterations(looping ? 0 : 1);
-        (*images)[frame] = img;
+    Magick::Geometry bound = getBound(bounds);
+    for (auto &image : images) {
+        image.crop(bound);
+        image.page(Magick::Geometry(bound.width(), bound.height()));
     }
 
-    // Remove useless borders
-    size_t extraW = 10 + (size[1].x - size[0].x) / 10 * 10 - (size[1].x - size[0].x);
-    size_t extraH = 10 + (size[1].y - size[0].y) / 10 * 10 - (size[1].y - size[0].y);
-    Magick::Geometry cropArea(
-        size[1].x - size[0].x + extraW,
-        size[1].y - size[0].y + extraH,
-        size[0].x - extraW / 2,
-        vp[3] - size[1].y - extraH / 2 // size use unflipped coordinate, so the y offset must be reversed
-    );
-    for (size_t i = 0; i != images->size(); ++i) {
-        (*images)[i].modifyImage();
-        (*images)[i].crop(cropArea);
-        (*images)[i].page(Magick::Geometry(cropArea.width(), cropArea.height()));
+    if (anim != "Ok" && anim != "Idle" && anim != "Pairpose" && (anim.size() <= 5 || anim.substr(anim.size()-5) != "_Loop")) {
+        images.at(0).animationDelay(30);
+        images.at(images.size()-1).animationDelay(100);
     }
 
-    std::string image_name = "Screenshots/" + sprite.file_name + "/" +
-                             sprite.ssPlayer->getPlayAnimeName() + ".gif";
-    std::filesystem::create_directories("Screenshots/" + sprite.file_name);
     std::unique_lock lock(saveMutex);
-    savers.push([images,image,image_name]() {
-        std::cout << "Saving " << image_name << "..." << std::endl;
-        Magick::writeImages(images->begin(), images->end(), image_name);
-        delete[] image;
-        delete images;
-        std::cout << "  > Animation saved: " << image_name << std::endl;
+    savers.push([images,name]() {
+        std::vector<Magick::Image> v(images.begin(), images.end());
+        Magick::writeImages(v.begin(), v.end(), name);
+        std::cout << "  > Animation saved: " << name << std::endl;
     });
 }
 
 void applyArgument()
 {
     for (auto &[part, pair] : sprite.overrided_parts) {
-        if (std::regex_search(pair.second, std::regex(R"(\.png$|\.webp$)"))) {
+        if (std::regex_search(pair.second, R"(\.png$|\.webp$)"_r)) {
             int textureId = -1;
             for (int i = 0; i < sprite.textures.size() && sprite.textures[i]; ++i)
                 if (sprite.textures[i]->file_name == pair.second)
@@ -333,7 +344,7 @@ void applyArgument()
         } else {
             std::string &ssbp = pair.first.empty() ? sprite.file_name : pair.first;
             if (ssbp.length() > 5 && strcmp(ssbp.c_str()+ssbp.length()-5, ".ssbp") == 0)
-                ssbp = sprite.resman->addData(replace(ssbp, "\\", "/"));
+                ssbp = sprite.resman->addData(replace(ssbp, '\\', '/'));
             ss::Instance param;
             param.clear();
             param.refEndframe = sprite.resman->getMaxFrame(ssbp, pair.second) - 1;
@@ -349,9 +360,8 @@ void applyArgument()
 void screenshotThread()
 {
     while (window != nullptr || !savers.empty()) {
-        if (savers.empty())
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        else {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        if (!savers.empty()) {
             savers.front()();
             std::unique_lock lock(saveMutex);
             savers.pop();
@@ -390,15 +400,4 @@ GLFWwindow *initOpenGL()
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, rbo);
 
     return window;
-}
-
-
-std::string replace(const std::string &src, const std::string &what, const std::string &repl)
-{
-    std::string cp = src;
-    while (true) {
-        const size_t pos = cp.find(what);
-        if (pos == cp.npos) return cp;
-        cp = cp.replace(pos, what.size(), repl);
-    }
 }

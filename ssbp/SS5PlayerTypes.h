@@ -19,7 +19,7 @@ class SSPoint;
 #define SS_ASSERT2(cond, msg) if (!(cond)) throw std::runtime_error(msg)
 
 #ifdef _DEBUG
-    #define _SSLOG(format,...)      std::cout << format << std::flush
+    #define _SSLOG(format,...)      printf(format, __VA_ARGS__); fflush(nullptr)
     #define SSLOG(format,...)       printf(format"\n", __VA_ARGS__)
     #define SSLOGERROR(format,...)  printf("Error: "format"\n", __VA_ARGS__)
 #else
