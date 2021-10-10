@@ -11,6 +11,7 @@
 
 #include "ssbpPlayer.h"
 #include "ssbpResource.h"
+#include "Screenshot.hpp"
 
 #include <GLFW/glfw3.h>
 #include <Magick++.h>
@@ -30,9 +31,7 @@ static glm::vec3 scaler;
 
 static Ssbp *ssbp = nullptr;
 static SsbpPlayer player;
-
-static std::queue<std::pair<std::variant<Magick::Image, std::vector<Magick::Image>>, std::string>> saveImages;
-static std::mutex saveMutex;
+static Saver saver(player);
 
 static std::string help = // hotkeys
 "\nA: previous animation\n"
@@ -59,70 +58,74 @@ void framebuffer_size_callback(GLFWwindow*, int width, int height) {
     windowWidth = width; windowHeight = height;
     glViewport(0, 0, width, height);
     //draw();
-    //TODO
     glClear(GL_COLOR_BUFFER_BIT);
     player.draw();
     glfwSwapBuffers(SsbpResource::window);
 }
 
-void saveSprite(/*Magick::Image image, const Magick::Geometry &bound, const std::string &name*/);
-void saveAnimation(const std::vector<Magick::Image> &images, const std::vector<Magick::Geometry> &bounds, const std::string &name);
 void key_callback(GLFWwindow*, int key, int scancode, int action, int modifier) {
-    if (key == GLFW_KEY_H && action == GLFW_PRESS) {             // Help
+    if (key == GLFW_KEY_H && action == GLFW_PRESS) {
         std::cout << help << std::endl;
-    } else if ((key == GLFW_KEY_UP || key == GLFW_KEY_W) && action == GLFW_PRESS) { // Prev anime
+    } else if ((key == GLFW_KEY_UP || key == GLFW_KEY_W) && action == GLFW_PRESS) {
         nextAnim();
-    } else if ((key == GLFW_KEY_DOWN || key == GLFW_KEY_S) && action == GLFW_PRESS) { // Prev anime
+    } else if ((key == GLFW_KEY_DOWN || key == GLFW_KEY_S) && action == GLFW_PRESS) {
         prevAnim();
-    } else if ((key == GLFW_KEY_RIGHT || key == GLFW_KEY_D) && (action == GLFW_PRESS || action == GLFW_REPEAT)) { // Next frame
+    } else if ((key == GLFW_KEY_RIGHT || key == GLFW_KEY_D) && (action == GLFW_PRESS || action == GLFW_REPEAT)) {
         player.pause = true;
         size_t frame = player.getFrame();
         if (frame < player.getMaxFrame()-1)
             player.setFrame(frame+1);
-    } else if ((key == GLFW_KEY_LEFT || key == GLFW_KEY_A) && (action == GLFW_PRESS || action == GLFW_REPEAT)) { // Prev frame
+    } else if ((key == GLFW_KEY_LEFT || key == GLFW_KEY_A) && (action == GLFW_PRESS || action == GLFW_REPEAT)) {
             player.pause = true;
             size_t frame = player.getFrame();
             if (frame > 0)
                 player.setFrame(frame-1);
-    } else if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {   // Pause / Resume
+    } else if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
         if (!player.loop && player.getFrame() == player.getMaxFrame()-1) {
             player.setFrame(0);
             player.pause = false;
         } else
             player.pause = !player.pause;
-    } else if (key == GLFW_KEY_L && action == GLFW_PRESS) {   // Loop
+    } else if (key == GLFW_KEY_L && action == GLFW_PRESS) {
         player.loop = !player.loop;
         player.pause = !player.loop && player.pause;
         std::cout << "Looping " << (player.loop ? "enabled" : "disabled") << std::endl;
-    } else if (key == GLFW_KEY_1 && (action == GLFW_PRESS || action == GLFW_REPEAT)) {   // Pause / Resume
+    } else if (key == GLFW_KEY_1 && (action == GLFW_PRESS || action == GLFW_REPEAT)) {
         player.speed = std::max(player.speed - 0.1f, -2.0f);
         std::cout << "Play speed: " << player.speed << '\n';
-    } else if (key == GLFW_KEY_2 && (action == GLFW_PRESS || action == GLFW_REPEAT)) {   // Pause / Resume
+    } else if (key == GLFW_KEY_2 && (action == GLFW_PRESS || action == GLFW_REPEAT)) {
         player.speed = 1.0f;
         std::cout << "Play speed reset\n";
-    } else if (key == GLFW_KEY_3 && (action == GLFW_PRESS || action == GLFW_REPEAT)) {   // Pause / Resume
+    } else if (key == GLFW_KEY_3 && (action == GLFW_PRESS || action == GLFW_REPEAT)) {
         player.speed = std::min(player.speed + 0.1f, 2.0f);
         std::cout << "Play speed: " << player.speed << '\n';
-    } else if (key == GLFW_KEY_C && action == GLFW_PRESS) {   // Pause / Resume
+    } else if (key == GLFW_KEY_C && action == GLFW_PRESS) {
         mover = glm::vec3(0.0f, -0.5f, 0.0f);
         scaler = glm::vec3(2.0f / windowWidth, 2.0f / windowHeight, 1.0f);
         SsbpResource::quad.set("u_View", glm::scale(glm::translate(glm::mat4(1), mover), scaler));
-    } else if (key == GLFW_KEY_X && action == GLFW_PRESS) {   // Pause / Resume
+    } else if (key == GLFW_KEY_X && action == GLFW_PRESS) {
         scaler.x *= -1.0;
         SsbpResource::quad.set("u_View", glm::scale(glm::translate(glm::mat4(1), mover), scaler));
-    } else if (key == GLFW_KEY_Q && action == GLFW_PRESS) {   // Pause / Resume
-        saveSprite();
+    } else if (key == GLFW_KEY_Q && action == GLFW_PRESS) {
+        float colors[4];
+        glGetFloatv(GL_COLOR_CLEAR_VALUE, colors);
+        glClearColor(0,0,0,0);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glClearColor(colors[0], colors[1], colors[2], colors[3]);
+        player.draw();
+        Magick::Image img = saver.screen();
+        saver.save("Screenshots/" + player.getFileName() + "/" + player.getAnimeName() + "_" + std::to_string(player.getFrame()) + ".png", img, saver.bounds(img));
+    } else if (key == GLFW_KEY_E && action == GLFW_PRESS) {
+        std::vector<Magick::Image> imgs;
+        for (size_t i = 0; i < player.getMaxFrame(); ++i) {
+            glClear(GL_COLOR_BUFFER_BIT);
+            player.setFrame(i);
+            player.draw();
+            imgs.emplace_back(Magick::Image(saver.screen()));
+            imgs.at(i).animationDelay(int(100 * (i+1) / player.getFps() - 100 * i / player.getFps()));
+        }
+        saver.save("Screenshots/" + player.getFileName() + "/" + player.getAnimeName() + "_Fix.gif", imgs, saver.bounds(imgs), Saver::SlowLoop);
     }
-    // screenshot
-    //case GLFW_KEY_Q:
-    //    if (action == GLFW_PRESS)
-    //        key_save_screen();
-    //    break;
-    // Save animation
-    //case GLFW_KEY_E:
-    //    if (action == GLFW_PRESS)
-    //        key_save_animation();
-    //    break;
 }
 
 void scroll_callback(GLFWwindow *, double /*xoff*/, double yoff)
@@ -153,23 +156,6 @@ void handleEvent()
     lastPos = mousePos;
 }
 
-void screenshotThread()
-{
-    while (SsbpResource::window != nullptr || !saveImages.empty()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        if (!saveImages.empty()) {
-            auto &[toSave, name] = saveImages.front();
-            if (std::holds_alternative<Magick::Image>(toSave))
-                std::get<Magick::Image>(toSave).write(name);
-            else
-                Magick::writeImages(std::get<std::vector<Magick::Image>>(toSave).begin(), std::get<std::vector<Magick::Image>>(toSave).end(), name);
-            std::cout << "  > File saved: " << name << std::endl;
-            std::unique_lock lock(saveMutex);
-            saveImages.pop();
-        }
-    }
-}
-
 int main(int n, char **argv)
 {
     glfwSetFramebufferSizeCallback(SsbpResource::window, framebuffer_size_callback);
@@ -184,7 +170,6 @@ int main(int n, char **argv)
     Ssbp *ssbp = &Ssbp::create(argv[1]);
     loadAnim(*ssbp);
     playAnim(ssbp->animePacks.front().name + "/" + ssbp->animePacks.front().animations.front().name);
-    std::thread t(screenshotThread);
 
     static float lastTime = float(glfwGetTime());
     while (!glfwWindowShouldClose(SsbpResource::window)) {
@@ -200,149 +185,10 @@ int main(int n, char **argv)
         glfwPollEvents();
     }
     SsbpResource::window = nullptr;
-    t.join();
     glfwTerminate();
 }
 
-static Magick::Geometry getBound(const Magick::Image &image)
-{
-    try {
-        Magick::Geometry area = image.boundingBox();
-        size_t extraW = 10 + area.width() / 10 * 10 - area.width();
-        size_t extraH = 10 + area.height() / 10 * 10 - area.height();
-        return Magick::Geometry(
-            area.width() + extraW,
-            area.height() + extraH,
-            area.xOff() - extraW / 2,
-            area.yOff() - extraH / 2
-        );
-    } catch (const std::exception &e) {
-        std::cerr << "Error: Empty image" << std::endl;
-        return Magick::Geometry("0x0");
-    }
-}
-
-static Magick::Geometry getBound(const std::vector<Magick::Geometry> &bounds)
-{
-    glm::u64mat2x2 size = glm::u64mat2x2(windowWidth, windowHeight, 0, 0);
-    for (const auto &bound : bounds) {
-        if (size[0].x > (size_t)bound.xOff())        size[0].x = bound.xOff();
-        if (size[1].x < bound.xOff()+bound.width())  size[1].x = bound.xOff()+bound.width();
-        if (size[0].y > (size_t)bound.yOff())        size[0].y = bound.yOff();
-        if (size[1].y < bound.yOff()+bound.height()) size[1].y = bound.yOff()+bound.height();
-    }
-    size_t extraW = 10 + (size[1].x - size[0].x) / 10 * 10 - (size[1].x - size[0].x);
-    size_t extraH = 10 + (size[1].y - size[0].y) / 10 * 10 - (size[1].y - size[0].y);
-    return Magick::Geometry(
-        size[1].x - size[0].x + extraW,
-        size[1].y - size[0].y + extraH,
-        size[0].x - extraW / 2,
-        size[0].y - extraH / 2
-    );
-}
-
-static Magick::Image getSprite(bool useBackground)
-{
-    //glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-    float colors[4];
-    glGetFloatv(GL_COLOR_CLEAR_VALUE, colors);
-    glClearColor(0,0,0,0);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glClearColor(colors[0], colors[1], colors[2], colors[3]);
-    //if (useBackground && background.texture && background.texture->loaded) {
-    //    debug(" with background");
-    //    background.shader.use();
-    //    background.shader.setVec2("u_Coef", float(background.texture->width) / windowWidth,
-    //                                        float(background.texture->height) / windowHeight);
-    //    background.shader.setTexture2D("u_Texture", background.texture->id);
-    //    background.shader.setBool("u_UseTexture", true);
-    //    background.draw();
-    //}
-    player.draw();
-    //glReadBuffer(GL_COLOR_ATTACHMENT0);
-    buffer.resize(windowWidth * windowHeight * 4);
-    glReadPixels(0, 0, windowWidth, windowHeight, GL_RGBA, GL_UNSIGNED_BYTE, buffer.data());
-
-    // Reverse premultiplied alpha
-    for (int i = 0; i != windowWidth * windowHeight; ++i) {
-        if (buffer[i*4+3] == 0) continue;
-        buffer[i*4] = GLubyte(std::min(int(buffer[i*4] * 0xFF) / buffer[i*4+3], 0xFF));
-        buffer[i*4+1] = GLubyte(std::min(int(buffer[i*4+1] * 0xFF) / buffer[i*4+3], 0xFF));
-        buffer[i*4+2] = GLubyte(std::min(int(buffer[i*4+2] * 0xFF) / buffer[i*4+3], 0xFF));
-    }
-    Magick::Image img = Magick::Image(windowWidth, windowHeight, "RGBA", Magick::CharPixel, buffer.data());
-    img.flip();
-    
-    return img;
-}
-
-std::tuple<std::vector<Magick::Image>, std::vector<Magick::Image>, std::vector<Magick::Geometry>>
-    getAnimation(const std::string &anim)
-{
-    //sprite.ssPlayer->play(anim, 1);
-    //applyArgument();
-    //int animFps = sprite.ssPlayer->getAnimFps();
-    //int nbFrame = sprite.ssPlayer->getMaxFrame();
-//
-    //std::vector<Magick::Image> imagesRGB; imagesRGB.reserve(nbFrame);
-    //std::vector<Magick::Image> imagesRGBA; imagesRGBA.reserve(nbFrame);
-    //std::vector<Magick::Geometry> bounds; bounds.reserve(nbFrame);
-    //for (int i = 0; i != nbFrame; ++i) {
-    //    sprite.ssPlayer->setFrameNo(i);
-    //    sprite.ssPlayer->update(0);
-    //    debug("Frame %d: ", i);
-    //    imagesRGB.emplace_back(getSprite(true));
-    //    debug("\n    ");
-    //    imagesRGBA.emplace_back(getSprite(false));
-    //    SSLOG("");
-    //    bounds.emplace_back(getBound(imagesRGBA.at(i)));
-    //    imagesRGBA.at(i).gifDisposeMethod(MagickCore::DisposeType::BackgroundDispose);
-    //    imagesRGB.at(i).gifDisposeMethod(MagickCore::DisposeType::BackgroundDispose);
-    //    imagesRGB.at(i).animationDelay(100 * i / animFps - 100 * (i-1) / animFps);
-    //    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    //}
-    //return std::make_tuple(imagesRGBA, imagesRGB, bounds);
-    return {};
-}
-
-void saveSprite(/*Magick::Image image, const Magick::Geometry &bound, const std::string &name*/)
-{
-    Magick::Image img1 = getSprite(true);
-    //Magick::Image img2 = getSprite(false);
-    Magick::Geometry bound = getBound(img1);
-    std::filesystem::create_directories("Screenshots/" + player.getFileName());
-
-    img1.crop(bound);
-
-    debug("Saving image...");
-    std::unique_lock lock(saveMutex);
-    saveImages.emplace(img1, "Screenshots/" + player.getFileName() + "/" + player.getAnimeName() + "_" + std::to_string(player.getFrame()) + ".png");
-}
-
-void saveAnimation(const std::vector<Magick::Image> &images, const std::vector<Magick::Geometry> &bounds, const std::string &name)
-{
-    std::filesystem::create_directories(name.substr(0, name.find_last_of("/\\")));
-    std::string anim = name.substr(name.find_last_of("\\/")+1);
-    anim = anim.substr(0, anim.find_last_of('.'));
-
-    Magick::Geometry bound = getBound(bounds);
-    std::vector<Magick::Image> imgs;
-    for (auto &image : images) {
-        imgs.push_back(Magick::Image(image));
-        imgs.back().crop(bound);
-        imgs.back().page(Magick::Geometry(bound.width(), bound.height()));
-    }
-
-    if (anim != "Ok" && anim != "Idle" && anim != "Pairpose" && (anim.size() <= 5 || anim.substr(anim.size()-5) != "_Loop")) {
-        imgs.front().animationDelay(30);
-        imgs.back().animationDelay(100);
-    }
-
-    std::unique_lock lock(saveMutex);
-    saveImages.emplace(std::move(imgs), name);
-}
-
-//TODO draw, screenshot, args, drop_callback
+//TODO draw, args, drop_callback
 
 char *_ = R"==(
 int main(int argc, char* argv[]) {

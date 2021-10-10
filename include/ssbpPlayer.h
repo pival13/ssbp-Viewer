@@ -21,12 +21,13 @@ class SsbpPlayer {
         void draw(const glm::mat4 &mat);
 
     public:
-        size_t getFrame() const;
-        inline size_t getMaxFrame() const { return _animation->partsPerFrames.size(); }
         inline std::string getFileName() const { return _ssbp->_path.stem().string(); }
         inline std::string getAnimeName() const { return _animation->name; }
         inline std::string getAnimePackName() const { return _animpack->name; }
         inline std::string getFullAnimeName() const { return _animpack->name + "/" + _animation->name; }
+        inline size_t getFps() const { return _animation->fps; }
+        size_t getFrame() const;
+        inline size_t getMaxFrame() const { return _animation->partsPerFrames.size(); }
 
     private:
         void drawCell(const Cell &cell, const glm::mat4 &mat, const FrameData &data);
@@ -46,5 +47,4 @@ class SsbpPlayer {
         const Animation *_animation;
         float _t;
         std::map<size_t, SsbpPlayer> _partsAnime;
-        std::map<std::string, int> _textures;
 };

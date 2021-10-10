@@ -19,9 +19,10 @@ add_compile_options(
 
 set(SOURCES
     src/glad.c
-    src/ssbpResource.cpp
-    src/ssbpReader.cpp
-    src/ssbpPlayer.cpp
+    src/Screenshot.cpp
+    src/SsbpResource.cpp
+    src/SsbpReader.cpp
+    src/SsbpPlayer.cpp
 )
 
 add_executable(${PROJECT}
