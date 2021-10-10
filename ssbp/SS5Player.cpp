@@ -2974,7 +2974,7 @@ void Player::setFrame(int frameNo)
                     int fdt = 1;
                     if (_prevDrawFrameNo < frameNo)            //差分フレームを計算
                     {
-                        fdt = (frameNo - _prevDrawFrameNo) * 2;
+                        fdt = frameNo - _prevDrawFrameNo;
                         if (sprite->refEffect->getPlayStatus() == false)
                         {
                             sprite->refEffect->play();
@@ -2990,10 +2990,9 @@ void Player::setFrame(int frameNo)
                         sprite->refEffect->reload();
                         sprite->refEffect->play();
                         sprite->refEffect->update(0.0f); //先頭フレームは0でアップデートする
-                        fdt = frameNo * 2;
                         if (frameNo > 0)
                         {
-                            fdt = fdt - 1;
+                            fdt = frameNo - 1;
                         }
                         else
                         {
@@ -3001,10 +3000,11 @@ void Player::setFrame(int frameNo)
                         }
 
                     }
+                    sprite->refEffect->play();
                     int f = 0;
                     for (f = 0; f < fdt; f++)
                     {
-                        sprite->refEffect->update(0.5f); //先頭から今のフレーム
+                        sprite->refEffect->update(1.f); //先頭から今のフレーム
                     }
                 }
             }
@@ -3055,12 +3055,9 @@ void Player::draw()
             }
             else
             {
-                if (sprite->_state.texture.handle != -1)
+                if ((sprite->_state.texture.handle != -1) && (sprite->_state.isVisibled == true))
                 {
-                    if ((sprite->_state.isVisibled == true) && (sprite->_state.opacity > 0))
-                    {
-                        SSDrawSprite(sprite->_state);
-                    }
+                    SSDrawSprite(sprite->_state);
                 }
             }
         }

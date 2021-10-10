@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.0.0)
 
-set(PROJECT ssbpViewer)
+set(PROJECT ssbpPlayer)
 project(${PROJECT})
 
 set(CMAKE_CXX_STANDARD 17)
@@ -19,16 +19,9 @@ add_compile_options(
 
 set(SOURCES
     src/glad.c
-    src/shader.cpp
-    src/sprite.cpp
-    src/texture.cpp
-    ssbp/SS5Player.cpp
-    ssbp/SS5PlayerPlatform.cpp
-    ssbp/Common/Animator/ssplayer_effect.cpp
-    ssbp/Common/Animator/ssplayer_effectfunction.cpp
-    ssbp/Common/Animator/ssplayer_matrix.cpp
-    ssbp/Common/Animator/ssplayer_PartState.cpp
-    ssbp/Common/Helper/DebugPrint.cpp
+    src/ssbpResource.cpp
+    src/ssbpReader.cpp
+    src/ssbpPlayer.cpp
 )
 
 add_executable(${PROJECT}
@@ -53,42 +46,8 @@ target_link_libraries(${PROJECT}
         "${ImageMagick_LIBRARIES}"
 )
 
-set_target_properties(${PROJECT} PROPERTIES DEBUG_POSTFIX "_d")
 add_custom_command(
     TARGET ${PROJECT} POST_BUILD
     #COMMAND $<IF:$<PLATFORM_ID:Windows>,dir,ls> "${ImageMagick_INCLUDE_DIRS}/.."
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_SOURCE_DIR}/bin/shaders/"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:${PROJECT}>" "${PROJECT_SOURCE_DIR}/bin"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PROJECT_SOURCE_DIR}/shaders/background.frag" "${PROJECT_SOURCE_DIR}/shaders/background.vert" "${PROJECT_SOURCE_DIR}/shaders/sprite.frag" "${PROJECT_SOURCE_DIR}/shaders/sprite.vert" "${PROJECT_SOURCE_DIR}/bin/shaders/"
-)
-
-
-add_executable(spriteSaver
-    ${SOURCES}
-    src/mainScreenshot.cpp
-)
-
-target_include_directories(spriteSaver PRIVATE
-    ${PROJECT_SOURCE_DIR}
-    include
-    ${ImageMagick_INCLUDE_DIRS}
-)
-
-target_link_libraries(spriteSaver
-    opengl32
-    glfw
-    glm::glm
-
-    debug
-        "${ImageMagick_LIBRARIES_DEBUG}"
-    optimized
-        "${ImageMagick_LIBRARIES}"
-)
-
-set_target_properties(spriteSaver PROPERTIES DEBUG_POSTFIX "_d")
-add_custom_command(
-    TARGET spriteSaver POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_SOURCE_DIR}/bin/shaders/"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:spriteSaver>" "${PROJECT_SOURCE_DIR}/bin"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PROJECT_SOURCE_DIR}/shaders/background.frag" "${PROJECT_SOURCE_DIR}/shaders/background.vert" "${PROJECT_SOURCE_DIR}/shaders/sprite.frag" "${PROJECT_SOURCE_DIR}/shaders/sprite.vert" "${PROJECT_SOURCE_DIR}/bin/shaders/"
 )

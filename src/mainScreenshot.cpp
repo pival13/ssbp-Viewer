@@ -1,6 +1,7 @@
 #include <iostream>
 #include <iomanip>
 #include <filesystem>
+#include <variant>
 #include <chrono>
 #include <thread>
 #include <mutex>
@@ -37,7 +38,7 @@ static GLuint fbo, rbo;
 
 static std::vector<uint8_t> buffer;
 
-static std::queue<std::function<void()>> savers;
+static std::queue<std::pair<std::variant<Magick::Image, std::vector<Magick::Image>>, std::string>> saveImages;
 static std::mutex saveMutex;
 
 static const std::vector<std::string> pairSubAnim = {"body_anim/Idle", "body_anim/Start", "body_anim/Ok", "body_anim/Attack1", "body_anim/Attack1_Loop", "body_anim/Damage"};
@@ -49,7 +50,8 @@ void screenshotThread();
 std::tuple<std::vector<Magick::Image>, std::vector<Magick::Image>, std::vector<Magick::Geometry>> getAnimation(const std::string &anim);
 
 void saveSprite(Magick::Image image, const Magick::Geometry &bound, const std::string &name);
-void saveAnimation(std::vector<Magick::Image> images, const std::vector<Magick::Geometry> &bounds, const std::string &name);
+void saveAnimation(const std::vector<Magick::Image> &images, const std::vector<Magick::Geometry> &bounds, const std::string &name);
+void combineAnimation(const std::map<std::string, std::pair<std::vector<Magick::Image>, std::vector<Magick::Geometry>>> &anims);
 
 void handleArgument(const std::string &arg);
 void applyArgument();
@@ -66,6 +68,13 @@ int main(int argc, char* argv[]) {
     backgroundPath = sprite.dir + "background.png";
 
     std::vector<std::string> shader_name_list{
+        //#include "../shaders/sprite.vert"
+        //,
+        //#include "../shaders/sprite.frag"
+        //,
+        //#include "../shaders/background.vert"
+        //,
+        //#include "../shaders/background.frag"
         sprite.dir + "shaders/sprite.vert",
         sprite.dir + "shaders/sprite.frag",
         sprite.dir + "shaders/background.vert",
@@ -79,6 +88,10 @@ int main(int argc, char* argv[]) {
         // initialize shaders & geometry
         sprite.init(shader_name_list[0], shader_name_list[1]);
         sprite.ssPlayer = ss::Player::create(sprite.resman);
+        background.init(shader_name_list[2], shader_name_list[3]);
+        background.shader.use();
+        background.shader.setInt("u_BgType", 1);
+        background.shader.setVec2("u_Shift", 0, 0);
         std::thread fileSaver(screenshotThread);
 
         sprite.shader.use();
@@ -104,6 +117,7 @@ int main(int argc, char* argv[]) {
                 std::vector<std::string> anims;
                 sprite.ssPlayer->setData(sprite.file_name, &anims);
                 sprite.ssPlayer->setGameFPS(frame_rate);
+                std::map<std::string, std::pair<std::vector<Magick::Image>, std::vector<Magick::Geometry>>> sprites;
                 for (const auto &anim : anims) {
                     if (!std::regex_match(anim, "body_anim/.*"_r) ||
                         (std::regex_match(sprite.file_name, ".*_PairSub"_r) && std::find(pairSubAnim.begin(), pairSubAnim.end(), anim) == pairSubAnim.end()) ||
@@ -113,6 +127,7 @@ int main(int argc, char* argv[]) {
                     }
                     std::cout << " " << anim << ": " << sprite.resman->getMaxFrame(sprite.file_name, anim) << " frames" << std::endl;
                     auto [rgbas, rgbs, bounds] = getAnimation(anim);
+                    sprites[sprite.ssPlayer->getPlayAnimeName()] = {rgbs, bounds};
                     if (std::find(usedSprite.begin(), usedSprite.end(), anim) != usedSprite.end()) {
                         int frame = sprite.resman->getMaxFrame(sprite.file_name, anim) - 1;
                         if (anim == "body_anim/Cheer")
@@ -121,7 +136,7 @@ int main(int argc, char* argv[]) {
                             frame = 0;
                         else if (anim == "body_anim/Transform" && std::regex_search(sprite.file_name, "Dragon|TransBattle|TransMap"_r))
                             frame = 0;
-                        saveSprite(rgbas.at(frame), bounds.at(frame), "Screenshots/" + sprite.file_name + "/" + sprite.ssPlayer->getPlayAnimeName() + "_" + std::to_string(frame) + ".png");
+                        //saveSprite(rgbas.at(frame), bounds.at(frame), "Screenshots/" + sprite.file_name + "/" + sprite.ssPlayer->getPlayAnimeName() + "_" + std::to_string(frame) + ".png");
                     }
                     saveAnimation(rgbs, bounds, "Screenshots/" + sprite.file_name + "/" + sprite.ssPlayer->getPlayAnimeName() + ".gif");
                     std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -132,8 +147,9 @@ int main(int argc, char* argv[]) {
                     {"Wep_BaseL", {"", "blank.png"}},
                     {"Wep_BaseL_Add", {"", "blank.png"}}
                 };
-                auto [rgbas, _, bounds] = getAnimation("body_anim/Idle");
-                saveSprite(rgbas.at(0), bounds.at(0), "Screenshots/" + sprite.file_name + "/Idle_no_wep.png");
+                //auto [rgbas, _, bounds] = getAnimation("body_anim/Idle");
+                //saveSprite(rgbas.at(0), bounds.at(0), "Screenshots/" + sprite.file_name + "/Idle_no_wep.png");
+                //combineAnimation(sprites);
             } catch (const std::exception &e) {
                 std::cerr << e.what() << std::endl;
             }
@@ -164,6 +180,7 @@ void handleArgument(const std::string &arg) {
             tmp = m.suffix();
         } else if (std::regex_search(tmp, m, "^\\s*(?:-bg\\s+|--background(?:=|\\s+))" readString ""_r)) {
             backgroundPath = m[1];
+            background.texture = new Texture(backgroundPath.c_str(), true);
             tmp = m.suffix();
         } else if (std::regex_search(tmp, m, "^\\s*(?:-b\\s+|--bind(?:=|\\s+))" readString ""_r)) {
             std::string bind = m[1];
@@ -174,6 +191,20 @@ void handleArgument(const std::string &arg) {
                 sprite.overrided_parts[m[1]] = {m[2], m[3]};
             } else
                 std::cerr << "Invalid binding command \"" << bind << "\"" << std::endl;
+        } else if (std::regex_search(tmp, m, "^\\s*(?:-s\\s+|--stretch(?:=|\\s+))\\s*(\\d+)"_r)) {
+            background.shader.use();
+            background.shader.setInt("u_BgType", stoul(m[1]));
+            tmp = m.suffix();
+        } else if (std::regex_search(tmp, m, "^\\s*(?:-p\\s+|--position(?:=|\\s+))" "(-?\\d*\\.\\d+|-?\\d+)(px|%|),(-?\\d*\\.\\d+|-?\\d+)(px|%|)"_r)) {
+            if (background.texture && m[2].first[0] == 'p' && m[4].first[0] == 'p') {
+                background.shader.use();
+                background.shader.setVec2("u_Shift",
+                    (stof(m[1]) - 0.5 * windowWidth) / background.texture->width,
+                    (-stof(m[3]) - 0.75 * windowHeight) / background.texture->height);
+            } else {
+                std::cout << "Unsupported offset" << std::endl;
+            }
+            tmp = m.suffix();
         } else if (std::regex_search(tmp, m, "^\\s*(?:-w\\s+|--width(?:=|\\s+))(\\d+)"_r)) {
             windowWidth = std::stoul(m[1]);
             glViewport(0, 0, windowWidth, windowHeight);
@@ -191,9 +222,26 @@ void handleArgument(const std::string &arg) {
             sprite.shader.setMat4("u_View", glm::value_ptr(glm::scale(glm::translate(glm::mat4(1.0f),glm::vec3(0.f, -0.5f, 0.f)),glm::vec3(2.f / windowWidth, 2.f / windowHeight, 1.f))));
             tmp = m.suffix();
         } else {
-            std::cerr << "Invalid argument \"" << arg << "\"" << std::endl;
-            tmp = tmp.substr(tmp.find_first_of(" \t\n")+1);
+            std::cerr << "Invalid argument \"" << tmp << "\"" << std::endl;
+            auto idx = tmp.find_first_of(" \t\n");
+            tmp = tmp.substr(idx != tmp.npos ? idx+1 : tmp.size());
         }
+}
+
+void combineAnimation(const std::map<std::string, std::pair<std::vector<Magick::Image>, std::vector<Magick::Geometry>>> &anims)
+{
+    auto endIt = anims.cend();
+    std::vector<std::map<std::string, std::pair<std::vector<Magick::Image>, std::vector<Magick::Geometry>>>::const_iterator> its;
+    its = {anims.find("Idle"), anims.find("Ready")/*, anims.find("Jump")*/, anims.find("Attack1"), anims.find("Attack2")};
+    if (std::none_of(its.begin(), its.end(), [&endIt](auto it) {return it == endIt;})) {
+        std::vector<Magick::Image> imgs; std::vector<Magick::Geometry> bounds;
+        for (auto &it : its) {
+            imgs.insert(imgs.end(), it->second.first.begin(), it->second.first.end());
+            imgs.back().animationDelay(50);
+            bounds.insert(bounds.end(), it->second.second.begin(), it->second.second.end());
+        }
+        saveAnimation(imgs, bounds, "Screenshots/" + sprite.file_name + "/test1.gif");
+    }
 }
 
 static Magick::Geometry getBound(const Magick::Image &image)
@@ -239,8 +287,12 @@ static Magick::Image getSprite(bool useBackground)
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     glClear(GL_COLOR_BUFFER_BIT);
     if (useBackground && background.texture && background.texture->loaded) {
+        _SSLOG(" with background");
         background.shader.use();
+        background.shader.setVec2("u_Coef", float(background.texture->width) / windowWidth,
+                                            float(background.texture->height) / windowHeight);
         background.shader.setTexture2D("u_Texture", background.texture->id);
+        background.shader.setBool("u_UseTexture", true);
         background.draw();
     }
     sprite.shader.use();
@@ -280,7 +332,7 @@ std::tuple<std::vector<Magick::Image>, std::vector<Magick::Image>, std::vector<M
         sprite.ssPlayer->update(0);
         _SSLOG("Frame %d: ", i);
         imagesRGB.emplace_back(getSprite(true));
-        _SSLOG(", ");
+        _SSLOG("\n    ");
         imagesRGBA.emplace_back(getSprite(false));
         SSLOG("");
         bounds.emplace_back(getBound(imagesRGBA.at(i)));
@@ -299,35 +351,30 @@ void saveSprite(Magick::Image image, const Magick::Geometry &bound, const std::s
     image.crop(bound);
 
     std::unique_lock lock(saveMutex);
-    savers.push([image,name]() {
-        Magick::Image(image).write(name);
-        std::cout << "  > Image saved: " << name << std::endl;
-    });
+    saveImages.emplace(image, name);
 }
 
-void saveAnimation(std::vector<Magick::Image> images, const std::vector<Magick::Geometry> &bounds, const std::string &name)
+void saveAnimation(const std::vector<Magick::Image> &images, const std::vector<Magick::Geometry> &bounds, const std::string &name)
 {
     std::filesystem::create_directories(name.substr(0, name.find_last_of("/\\")));
     std::string anim = name.substr(name.find_last_of("\\/")+1);
     anim = anim.substr(0, anim.find_last_of('.'));
 
     Magick::Geometry bound = getBound(bounds);
+    std::vector<Magick::Image> imgs;
     for (auto &image : images) {
-        image.crop(bound);
-        image.page(Magick::Geometry(bound.width(), bound.height()));
+        imgs.push_back(Magick::Image(image));
+        imgs.back().crop(bound);
+        imgs.back().page(Magick::Geometry(bound.width(), bound.height()));
     }
 
     if (anim != "Ok" && anim != "Idle" && anim != "Pairpose" && (anim.size() <= 5 || anim.substr(anim.size()-5) != "_Loop")) {
-        images.at(0).animationDelay(30);
-        images.at(images.size()-1).animationDelay(100);
+        imgs.front().animationDelay(30);
+        imgs.back().animationDelay(100);
     }
 
     std::unique_lock lock(saveMutex);
-    savers.push([images,name]() {
-        std::vector<Magick::Image> v(images.begin(), images.end());
-        Magick::writeImages(v.begin(), v.end(), name);
-        std::cout << "  > Animation saved: " << name << std::endl;
-    });
+    saveImages.emplace(std::move(imgs), name);
 }
 
 void applyArgument()
@@ -359,12 +406,17 @@ void applyArgument()
 
 void screenshotThread()
 {
-    while (window != nullptr || !savers.empty()) {
+    while (window != nullptr || !saveImages.empty()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        if (!savers.empty()) {
-            savers.front()();
+        if (!saveImages.empty()) {
+            auto &[toSave, name] = saveImages.front();
+            if (std::holds_alternative<Magick::Image>(toSave))
+                std::get<Magick::Image>(toSave).write(name);
+            else
+                Magick::writeImages(std::get<std::vector<Magick::Image>>(toSave).begin(), std::get<std::vector<Magick::Image>>(toSave).end(), name);
+            std::cout << "  > File saved: " << name << std::endl;
             std::unique_lock lock(saveMutex);
-            savers.pop();
+            saveImages.pop();
         }
     }
 }
