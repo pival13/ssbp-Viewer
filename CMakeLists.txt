@@ -23,6 +23,7 @@ set(SOURCES
     src/SsbpResource.cpp
     src/SsbpReader.cpp
     src/SsbpPlayer.cpp
+    src/SsbpViewer.cpp
 )
 
 add_executable(${PROJECT}

@@ -8,8 +8,6 @@
 
 #include <Magick++.h>
 
-#include "ssbpPlayer.h"
-
 class Saver {
     public: enum LoopState {
         NoLoop,
@@ -18,7 +16,7 @@ class Saver {
     };
 
     public:
-        Saver(SsbpPlayer &player);
+        Saver();
         ~Saver();
 
     public:
@@ -32,7 +30,6 @@ class Saver {
         void save(const std::string &name, const std::vector<Magick::Image> &images, const Magick::Geometry &bound="-1x-1+0+0", LoopState looping=LoopState::Loop);
 
     private:
-        SsbpPlayer &_player;
         std::thread t;
 
         std::queue<std::pair<std::variant<Magick::Image, std::vector<Magick::Image>>, std::string>> _images;

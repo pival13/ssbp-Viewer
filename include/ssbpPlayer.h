@@ -41,7 +41,7 @@ class SsbpPlayer {
         int start = 0;
         int end = -1;
 
-    private:
+    protected:
         const Ssbp *_ssbp;
         const AnimePack *_animpack;
         const Animation *_animation;
