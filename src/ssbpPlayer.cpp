@@ -37,11 +37,13 @@ void SsbpPlayer::play(const std::string &pack, const std::string &name, bool loo
             _partsAnime[part.index] = SsbpPlayer(*_ssbp);
             _partsAnime[part.index].play(part.extAnime);
         }
+    update();
 }
 
 void SsbpPlayer::setFrame(size_t frame, bool force)
 {
     _t = float(frame) / _animation->fps;
+    update();
     if (force)
         for (auto &[_,player] : _partsAnime)
             player.setFrame(frame, force);
@@ -62,16 +64,56 @@ void SsbpPlayer::update(float dt)
     if (pause) return;
     _t += dt * speed;
     float maxframe = float((end < 0 ? getMaxFrame()-1 : end) - start) * (pingpong ? 2 : 1);
-    if (_t * _animation->fps > maxframe+1) {
+    if (_t * _animation->fps > maxframe+1 || _t < 0) {
         if (loop)
-            _t -= maxframe / _animation->fps;
+            _t -= maxframe / _animation->fps * (speed < 0 ? -1 : 1);
         else {
-            _t -= dt;
+            _t -= dt * speed;
             return;
         }
     }
+    update();
     for (auto &[_,player] : _partsAnime)
         player.update(dt);
+}
+
+void SsbpPlayer::update()
+{
+    size_t frame = getFrame();
+    const std::vector<Part> &parts = _animpack->parts;
+    const std::vector<InitData> &initPartsData = _animation->initialParts;
+    const std::vector<FrameData> &partsData = _animation->partsPerFrames.at(frame);
+
+    _matrices.resize(parts.size());
+    for (int i = 0; i != parts.size(); ++i) {
+        auto &initPartData = *std::find_if(initPartsData.begin(), initPartsData.end(), [i](const InitData &part) {return part.index == i;});
+        auto &partData = *std::find_if(partsData.begin(), partsData.end(), [i](const FrameData &part) {return part.index == i;});
+
+        int cellIndex = partData.cellIndex.value_or(initPartData.cellIndex);
+        glm::mat4 mat = parts.at(i).parent ? _matrices[parts.at(i).parent->index] : glm::mat4(1);
+        mat = glm::translate(mat, {
+            partData.pos.x.value_or(initPartData.pos.x)/10.f,
+            partData.pos.y.value_or(initPartData.pos.y)/10.f,
+            0
+        });
+        mat = glm::rotate(mat, partData.rotation.z.value_or(initPartData.rotation.z) * glm::pi<float>() / 180, {0,0,1});
+        mat = glm::scale(mat, {
+            partData.scale.x.value_or(initPartData.scale.x),
+            partData.scale.y.value_or(initPartData.scale.y),
+            1
+        });
+        _matrices[i] = mat;
+
+        if (parts.at(i).type == PartType::Instance) {
+            SsbpPlayer &player = _partsAnime.at(partData.index);
+            if (partData.instanceStart) player.start = *partData.instanceStart;
+            if (partData.instanceEnd) player.end = *partData.instanceEnd;
+            if (partData.instanceInfinity) player.loop = *partData.instanceInfinity;
+            if (partData.instancePingpong) player.pingpong = *partData.instancePingpong;
+            if (partData.instanceReverse) player.reverse = *partData.instanceReverse;
+        }
+    }
+    
 }
 
 void SsbpPlayer::draw(float posX, float posY, float rotation, float scaleX, float scaleY)
@@ -86,57 +128,29 @@ void SsbpPlayer::draw(const glm::mat4 &mat)
     const std::vector<InitData> &initPartsData = _animation->initialParts;
     const std::vector<FrameData> &partsData = _animation->partsPerFrames.at(frame);
 
-    std::vector<glm::mat4> matrices;
-    matrices.resize(parts.size());
-    for (int i = 0; i != parts.size(); ++i) {
-        auto &initPartData = *std::find_if(initPartsData.begin(), initPartsData.end(), [i](const InitData &part) {return part.index == i;});
-        auto &partData = *std::find_if(partsData.begin(), partsData.end(), [i](const FrameData &part) {return part.index == i;});
-
-        int cellIndex = partData.cellIndex.value_or(initPartData.cellIndex);
-        vec2f_t cellPivot = cellIndex >= 0 ? _ssbp->cells.at(cellIndex).pivot : vec2f_t{0,0};
-        matrices[i] = glm::scale(
-            glm::rotate(
-                glm::translate(
-                    parts.at(i).parent ? matrices[parts.at(i).parent->index] : mat,
-                    { partData.pos.x.value_or(initPartData.pos.x)/10.f, partData.pos.y.value_or(initPartData.pos.y)/10.f, 0 }),
-                partData.rotation.z.value_or(initPartData.rotation.z) * glm::pi<float>() / 180, {0, 0, 1}),
-            { partData.scale.x.value_or(initPartData.scale.x), partData.scale.y.value_or(initPartData.scale.y), 1 });
-    }
-
     for (size_t i = 0; i != parts.size(); ++i) {
         auto &partData = partsData.at(i);
         auto &initPartData = *std::find_if(initPartsData.begin(), initPartsData.end(), [partData](const InitData &part) {return part.index == partData.index;});
-        auto &matrix = matrices.at(initPartData.index);
+        auto &matrix = _matrices.at(initPartData.index) * mat;
 
-        if (parts.at(partData.index).type == PartType::Null || partData.invisible || partData.opacity.value_or(initPartData.opacity) == 0)
+        if (parts.at(partData.index).type == PartType::Null || partData.invisible || partData.opacity.value_or(initPartData.opacity) == 0) {
             continue;
-        else if (parts.at(partData.index).type == PartType::Normal) {
+        } else if (parts.at(partData.index).type == PartType::Normal) {
             int cellIndex = partData.cellIndex.value_or(initPartData.cellIndex);
             int opacity = partData.opacity.value_or(initPartData.opacity);
             if (cellIndex == -1 || opacity == 0 || partData.invisible) continue;
-            if (partData.textureRotation.value_or(initPartData.textureRotation) != 0 ||
-                partData.textureShift.x.value_or(initPartData.textureShift.x) != 0 ||
-                partData.textureShift.y.value_or(initPartData.textureShift.y) != 0 ||
-                partData.textureScale.x.value_or(initPartData.textureScale.x) != 1 ||
-                partData.textureScale.y.value_or(initPartData.textureScale.y) != 1)
-                    std::cerr << "Unsupported transform on texture: Animation " << _animpack->name << "/" << _animation->name << ", frame " << frame << ", part " << parts.at(partData.index).name << std::endl;
             drawCell(_ssbp->cells[cellIndex], matrix, partData);
         } else if (parts.at(partData.index).type == PartType::Instance) {
-            SsbpPlayer player = _partsAnime.at(partData.index);
-            if (partData.instanceStart) player.start = *partData.instanceStart;
-            if (partData.instanceEnd) player.end = *partData.instanceEnd;
-            if (partData.instanceInfinity) player.loop = *partData.instanceInfinity;
-            if (partData.instancePingpong) player.pingpong = *partData.instancePingpong;
-            if (partData.instanceReverse) player.reverse = *partData.instanceReverse;
-            player.draw(matrix);
+            _partsAnime.at(partData.index).draw(matrix);
         } else {
-            std::cerr << "Unsupported part type: Animation " << _animpack->name << "/" << _animation->name << ", frame " << frame << ", part " << parts.at(partData.index).name << " (" << parts.at(partData.index).type << ")" << std::endl;
+            std::cerr << "Unsupported part type: " << getFullAnimeName() << ", frame " << frame << ", part " << parts.at(partData.index).name << " (" << parts.at(partData.index).type << ")" << std::endl;
         }
     }
 }
 
 void SsbpPlayer::drawCell(const Cell &cell, const glm::mat4 &mat, const FrameData &data)
 {
+    const InitData &initPartData = *std::find_if(_animation->initialParts.begin(), _animation->initialParts.end(), [&data](const InitData &part) {return part.index == data.index;});
     const Texture &texture = SsbpResource::getTexture(_ssbp->_path, _ssbp->imageBaseDir, cell.texturePath);
     if (!texture.loaded) return;
     SsbpResource::quad.set("u_Texture", texture);
@@ -147,10 +161,16 @@ void SsbpPlayer::drawCell(const Cell &cell, const glm::mat4 &mat, const FrameDat
         if (blending == Add)
             glBlendFuncSeparate(GL_ONE, GL_ONE, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
         else
-            std::cerr << "Unsupported blending on: " << _animpack->name << "/" << _animation->name << ", part " << _animpack->parts.at(data.index).name << ": " << blending << std::endl;
+            std::cerr << "Unsupported blending on: " << getFullAnimeName() << ", frame " << getFrame() << ", part " << _animpack->parts.at(data.index).name << ": " << blending << std::endl;
     }
 
-    auto &initPartData = *std::find_if(_animation->initialParts.begin(), _animation->initialParts.end(), [&data](const InitData &part) {return part.index == data.index;});
+    if (data.textureRotation.value_or(initPartData.textureRotation) != 0 ||
+        data.textureShift.x.value_or(initPartData.textureShift.x) != 0 ||
+        data.textureShift.y.value_or(initPartData.textureShift.y) != 0 ||
+        data.textureScale.x.value_or(initPartData.textureScale.x) != 1 ||
+        data.textureScale.y.value_or(initPartData.textureScale.y) != 1)
+            std::cerr << "Unsupported transform on texture: " << getFullAnimeName() << ", frame " << getFrame() << ", part " << _animpack->parts.at(data.index).name << std::endl;
+
     float width = data.size.x.value_or(initPartData.size.x);
     float height = data.size.y.value_or(initPartData.size.y);
     float offsetX = (data.pivot.x.value_or(initPartData.pivot.x) + cell.pivot.x * (data.flipX ? -1 : 1)) * width;

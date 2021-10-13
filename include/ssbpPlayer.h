@@ -30,6 +30,7 @@ class SsbpPlayer {
         inline size_t getMaxFrame() const { return _animation->partsPerFrames.size(); }
 
     private:
+        void update();
         void drawCell(const Cell &cell, const glm::mat4 &mat, const FrameData &data);
 
     public:
@@ -47,4 +48,7 @@ class SsbpPlayer {
         const Animation *_animation;
         float _t;
         std::map<size_t, SsbpPlayer> _partsAnime;
+    
+    private:
+        std::vector<glm::mat4> _matrices;
 };

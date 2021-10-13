@@ -22,6 +22,7 @@ static SsbpViewer *_viewer;
 
 SsbpViewer::SsbpViewer(int argc, char **argv)
 {
+    background = nullptr;
     _viewer = this;
     glfwGetFramebufferSize(SsbpResource::window, &width, &height);
     mover = glm::vec3(0, -0.75, 0);
@@ -48,17 +49,54 @@ void SsbpViewer::run()
     std::cout << helpString << std::endl;
     time = glfwGetTime();
     glfwGetCursorPos(SsbpResource::window, &mouse.x, &mouse.y);
-    while (!glfwWindowShouldClose(SsbpResource::window)) {
-        double currentTime = glfwGetTime();
 
-        handleEvents();
-        glClear(GL_COLOR_BUFFER_BIT);
+    double currentTime;
+    while (!glfwWindowShouldClose(SsbpResource::window)) {
+        currentTime = glfwGetTime();
         update(float(currentTime - time));
-        draw();
-        glfwSwapBuffers(SsbpResource::window);
-        glfwPollEvents();
+        render();
+        handleEvents();
         time = currentTime;
     }
+}
+
+void SsbpViewer::render(bool useBackground)
+{
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    if (useBackground && background && background->loaded) {
+        SsbpResource::quad.set("u_Texture", *background);
+        SsbpResource::quad.draw({
+            glm::vec3{(-1 - mover.x) / scaler.x, (-1 - mover.y) / scaler.y, 0},
+            glm::vec3{(-1 - mover.x) / scaler.x, (1 - mover.y) / scaler.y, 0},
+            glm::vec3{(1 - mover.x) / scaler.x, (-1 - mover.y) / scaler.y, 0},
+            glm::vec3{(1 - mover.x) / scaler.x, (1 - mover.y) / scaler.y, 0},
+        },
+        { glm::vec2{0,1}, {0,0}, {1,1}, {1,0} },
+        { glm::vec4{1,1,1,1}, {1,1,1,1}, {1,1,1,1}, {1,1,1,1} }
+        );
+    }
+
+    SsbpPlayer::draw();
+    
+    glfwSwapBuffers(SsbpResource::window);
+}
+
+void SsbpViewer::handleEvents()
+{
+    glfwPollEvents();
+
+    glm::dvec2 pos;
+    glfwGetCursorPos(SsbpResource::window, &pos.x, &pos.y);
+    int left_button = glfwGetMouseButton(SsbpResource::window, GLFW_MOUSE_BUTTON_LEFT);
+    int right_button = glfwGetMouseButton(SsbpResource::window, GLFW_MOUSE_BUTTON_RIGHT);
+    if (left_button == GLFW_PRESS) {
+        mover += glm::vec3((pos - mouse) / glm::dvec2(width, -height) * 2.0, 0.0f);
+        setViewMatrix();
+    }
+    if (right_button == GLFW_PRESS)
+        scrollCallback((pos.y - mouse.y) / -height * 20);
+    mouse = pos;
 }
 
 void SsbpViewer::resizeCallback(int w, int h)
@@ -67,10 +105,7 @@ void SsbpViewer::resizeCallback(int w, int h)
     width = w; height = h;
     setViewMatrix();
     glViewport(0, 0, width, height);
-    //draw();
-    glClear(GL_COLOR_BUFFER_BIT);
-    draw();
-    glfwSwapBuffers(SsbpResource::window);
+    render();
 }
 
 void SsbpViewer::scrollCallback(double y)
@@ -149,29 +184,11 @@ void SsbpViewer::keyCallback(int key, int scancode, int action, int modifier)
     } else if (key == GLFW_KEY_E && action == GLFW_PRESS) {
         std::vector<Magick::Image> imgs;
         for (size_t i = 0; i < getMaxFrame(); ++i) {
-            glClear(GL_COLOR_BUFFER_BIT);
             setFrame(i);
-            draw();
+            render();
             imgs.emplace_back(saver.screen());
-            imgs.at(i).animationDelay(int(100 * (i+1) / getFps() - 100 * i / getFps()));
+            imgs.at(i).animationDelay(100 * (i+1) / getFps() - 100 * i / getFps());
         }
         saver.save("Screenshots/" + getFileName() + "/" + getAnimeName() + ".gif", imgs, saver.bounds(imgs), loop ? Saver::Loop : Saver::SlowLoop);
     }
-}
-
-void SsbpViewer::handleEvents()
-{
-    glfwPollEvents();
-
-    glm::dvec2 pos;
-    glfwGetCursorPos(SsbpResource::window, &pos.x, &pos.y);
-    int left_button = glfwGetMouseButton(SsbpResource::window, GLFW_MOUSE_BUTTON_LEFT);
-    int right_button = glfwGetMouseButton(SsbpResource::window, GLFW_MOUSE_BUTTON_RIGHT);
-    if (left_button == GLFW_PRESS) {
-        mover += glm::vec3((pos - mouse) / glm::dvec2(width, -height) * 2.0, 0.0f);
-        setViewMatrix();
-    }
-    if (right_button == GLFW_PRESS)
-        scrollCallback((pos.y - mouse.y) / -height * 20);
-    mouse = pos;
 }

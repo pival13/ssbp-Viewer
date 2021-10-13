@@ -27,79 +27,9 @@ int main(int n, char **argv)
 #endif
     return 0;
 }
-//TODO draw, args, drop_callback
+//TODO args
 
 char *_ = R"==(
-int main(int argc, char* argv[]) {
-    std::filesystem::path currentDir = std::filesystem::path(argv[0]).parent_path();
-    std::filesystem::path backgroundPath = currentDir / "background.png";
-
-    glfwGetWindowSize(SsbpResource::window, &windowWidth, &windowHeight);
-    scaler = glm::vec3(2.0f / windowWidth, 2.0f / windowHeight, 1.0f);
-
-    /**/
-    handleArguments(argc, argv+1);
-    /*/
-    //ssbp = &Ssbp::create("images/ch00_27_Freya_F_Normal_TransBattle/ch00_27_Freya_F_Normal_TransBattle.ssbp");
-    //ssbp = &Ssbp::create("images/ch00_27_Freya_F_Normal/ch00_27_Freya_F_Normal.ssbp");
-    //ssbp = &Ssbp::create("images/ch04_24_Marc_F_Dark04/ch04_24_Marc_F_Dark04.ssbp");
-    ssbp = &Ssbp::create("images/ch04_12_Tiki_F_Normal/ch04_12_Tiki_F_Normal.ssbp");
-    /**/
-
-    SsbpPlayer player;
-    try {
-        std::cout << help << std::endl;
-        applyArgument();
-        std::thread fileSaver(screenshotThread);
-        player.play(ssbp->animePacks.front().name + "/" + ssbp->animePacks.front().animations.front().name);
-        // render loop
-        while (!glfwWindowShouldClose(SsbpResource::window)) {
-            handleEvents();
-            draw();
-            std::this_thread::sleep_for(std::chrono::milliseconds(int(1000 / 60)));
-        }
-        fileSaver.join();
-        glfwTerminate();
-    } catch (const std::runtime_error &e) {
-        std::cerr << e.what() << std::endl;
-        glfwTerminate();
-        return 1;
-    }
-    return 0;
-}
-
-void draw()
-{
-    // calc delta time
-    static GLfloat lastTime = 0.0f;
-    GLfloat currentTime = float(glfwGetTime());
-    GLfloat deltaTime = currentTime - lastTime;
-    lastTime = currentTime;
-
-    // render
-    // glClearColor(0.25f, 0.3f, 0.4f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    background.shader.use();
-    background.shader.setVec2("u_Coef", float(background.texture->width) / windowWidth,
-                                        float(background.texture->height) / windowHeight);
-    background.shader.setTexture2D("u_Texture", background.texture->id);
-    background.shader.setBool("u_UseTexture", background.texture->loaded);
-    background.draw();
-
-    sprite.shader.use();
-    sprite.ssPlayer->update(deltaTime);    //Player update
-    sprite.draw();    //Draw a layer
-
-    glm::mat4 view = glm::scale(glm::translate(glm::mat4(1.0f), mover), scale);
-    sprite.shader.setMat4("u_View", glm::value_ptr(view));
-
-    sprite.shader.setFloat("u_Time", currentTime);
-
-    //glfw: swap buffers and poll IO events (keys pressed/releaed, mouse moved etc.)
-    glfwSwapBuffers(window);
-}
-
 void handleArguments(int argc, char **argv) {
     for (int i = 1; i != argc; ++i, ++argv) {
         if ((i != argc-1 && strcmp(*argv, "-b") == 0) || strncmp(*argv, "--bind=", 7) == 0) {

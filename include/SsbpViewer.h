@@ -20,7 +20,7 @@ class SsbpViewer : protected SsbpPlayer {
         void scrollCallback(double y);
         void keyCallback(int key, int scancode, int action, int modifier);
         void handleEvents();
-        //void draw();
+        void render(bool renderBackground=true);
 
     private:
         glm::vec3 mover;
@@ -30,4 +30,5 @@ class SsbpViewer : protected SsbpPlayer {
         glm::dvec2 mouse;
 
         Saver saver;
+        const Texture *background;
 };
