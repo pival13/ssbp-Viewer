@@ -128,8 +128,8 @@ void SsbpViewer::handleArguments(std::string args)
             } else {
                 std::cout << "Unsupported offset" << std::endl;
             }*/
-        } else if (std::regex_search(args, m, std::regex("^\\s*~\\s*" stringPattern)) && m[1].str().find(',') != std::string::npos) {
-            argumentReplace(m[1]);
+        } else if (std::regex_search(args, m, std::regex("^\\s*" stringPattern)) && std::regex_match(m[1].str(), std::regex("^~\\s*.+,.*"))) {
+            argumentReplace(std::regex_replace(m[1].str(), std::regex("^~\\s*"), ""));
             args = m.suffix();
         //} else if (std::regex_search(args, m, std::regex("^\\s*\\+\\s*" stringPattern)) && std::regex_search(m[1].str(), std::regex("^(.+,){6}"))) {
         //    // Add arg
@@ -152,10 +152,22 @@ void SsbpViewer::handleArguments(std::string args)
 
     if (!_ssbp) {
         std::cout << "Drag an ssbp file here then press enter.\n";
-        std::string s; std::cin >> s;
-        _ssbp = &Ssbp::create(s);
+        while (true) {
+            std::string s; std::cin >> s;
+            if (std::cin.eof()) {
+                glfwSetWindowShouldClose(SsbpResource::window, 1);
+                return;
+            }
+            try {
+                _ssbp = &Ssbp::create(s);
+                break;
+            } catch (const std::invalid_argument &e) {
+                std::cerr << "Failed to read SSBP file: " << s << std::endl;
+            }
+        }
         play(_ssbp->animePacks.front().name, _ssbp->animePacks.front().animations.front().name, false);
     }
+    glfwShowWindow(SsbpResource::window);
 }
 
 void SsbpViewer::argumentReplace(const std::string &arg)

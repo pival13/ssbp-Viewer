@@ -16,6 +16,7 @@ static GLFWwindow *initOpenGL()
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     // glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
+    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
     GLFWwindow *window = glfwCreateWindow(500, 500, "SSBP Viewer", nullptr, nullptr);
     if (window == nullptr)
         throw std::runtime_error("Failed to create GLFW window");
