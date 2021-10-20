@@ -48,9 +48,25 @@ Ssbp::Ssbp(const std::string &path)
     animePacks.clear();
     if (ssbp.animePackSize > 0) {
         animePacks.reserve(ssbp.animePackSize);
-        for (size_t i = 0; i < ssbp.animePackSize; ++i)
-            animePacks.emplace_back(data, packDatas[i]);
+        for (size_t i = 0; i < ssbp.animePackSize; ++i) {
+            AnimePack &pack = animePacks.emplace_back(data, packDatas[i]);
+            for (Part &part : pack.parts)
+                part._anime = this;
+        }
     }
+}
+
+Ssbp &Ssbp::operator=(Ssbp &&r)
+{
+    _path = r._path;
+    imageBaseDir = r.imageBaseDir;
+    cells = std::move(r.cells);
+    animePacks = std::move(r.animePacks);
+    for (AnimePack &pack : animePacks)
+        for (Part &part : pack.parts)
+            if (part._anime == &r)
+                part._anime = this;
+    return *this;
 }
 
 AnimePack::AnimePack(uint8_t *data, const AnimePackData &ref)
@@ -85,6 +101,7 @@ Part::Part(uint8_t *data, const PartData &ref)
     extEffect = ref.effect ? (char*)data + ref.effect : "";
     color = ref.colorLabel ? (char*)data + ref.colorLabel : "";
     parent = nullptr;
+    _anime = nullptr;
 }
 
 Cell::Cell(uint8_t *data, const CellData &ref)

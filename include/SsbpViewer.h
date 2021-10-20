@@ -16,6 +16,10 @@ class SsbpViewer : protected SsbpPlayer {
     private:
         inline void setViewMatrix() { SsbpResource::quad.set("u_View", glm::scale(glm::translate(glm::mat4(1), mover), scaler)); }
 
+        void handleArguments(int argc, char **argv);
+        void handleArguments(std::string args);
+        void argumentReplace(const std::string &arg);
+
         void resizeCallback(int w, int h);
         void scrollCallback(double y);
         void keyCallback(int key, int scancode, int action, int modifier);

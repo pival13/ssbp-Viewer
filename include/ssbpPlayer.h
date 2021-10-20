@@ -8,9 +8,9 @@
 class SsbpPlayer {
     public:
         SsbpPlayer() = default;
-        SsbpPlayer(const Ssbp &ssbp);
+        SsbpPlayer(Ssbp &ssbp);
         ~SsbpPlayer();
-        SsbpPlayer &operator=(const Ssbp &ssbp);
+        SsbpPlayer &operator=(Ssbp &ssbp);
     
     public:
         void play(const std::string &pack, const std::string &anime, bool loop=true, int startFrame=0, int endFrame=-1);
@@ -43,9 +43,9 @@ class SsbpPlayer {
         int end = -1;
 
     protected:
-        const Ssbp *_ssbp;
-        const AnimePack *_animpack;
-        const Animation *_animation;
+        Ssbp *_ssbp;
+        AnimePack *_animpack;
+        Animation *_animation;
         float _t;
         std::map<size_t, SsbpPlayer> _partsAnime;
     

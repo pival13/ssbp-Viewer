@@ -1,4 +1,5 @@
 #include <iostream>
+#include <regex>
 
 #include <GLFW/glfw3.h>
 
@@ -33,8 +34,7 @@ SsbpViewer::SsbpViewer(int argc, char **argv)
     glfwSetScrollCallback(SsbpResource::window, [](GLFWwindow*, double, double scroll) { _viewer->scrollCallback(scroll); });
     glfwSetKeyCallback(SsbpResource::window, [](GLFWwindow*, int key, int code, int action, int modifier) { _viewer->keyCallback(key, code, action, modifier); });
 
-    _ssbp = &Ssbp::create(argv[1]);
-    play(_ssbp->animePacks.front().name, _ssbp->animePacks.front().animations.front().name, false);
+    handleArguments(argc, argv);
 }
 
 SsbpViewer::~SsbpViewer()
@@ -80,6 +80,133 @@ void SsbpViewer::render(bool useBackground)
     SsbpPlayer::draw();
     
     glfwSwapBuffers(SsbpResource::window);
+}
+
+void SsbpViewer::handleArguments(int argc, char **argv)
+{
+    std::string args;
+    for (int i = 1; i < argc; ++i)
+        args += std::string(" ") + (argv[i][0] != '-' ? "\"" : "") + std::regex_replace(argv[i],std::regex("\""),"\\\"") + (argv[i][0] != '-' ? "\"" : "");
+    handleArguments(args);
+}
+
+void SsbpViewer::handleArguments(std::string args)
+{
+    #define stringPattern R"#((?:"((?:[^\\"]|\\"|\\)*)"|(\S+)))#"
+    #define argPattern(smallArg, longArg, expected) std::regex("^\\s*(?:-" smallArg "\\s+|--" longArg "(?:=\\s*|\\s+))" expected, std::regex_constants::icase)
+    std::smatch m;
+    while (!std::regex_match(args, std::regex("^\\s*$")))
+        if        (std::regex_search(args, m, argPattern("w", "width", "(\\d+)"))) {
+            width = std::stol(m[1]);
+            glfwSetWindowSize(SsbpResource::window, width, height);
+            glViewport(0, 0, width, height);
+            scaler = glm::vec3(2.f / width, 2.f / height, 1);
+            setViewMatrix();
+            args = m.suffix();
+        } else if (std::regex_search(args, m, argPattern("h", "height", "(\\d+)"))) {
+            height = std::stol(m[1]);
+            glfwSetWindowSize(SsbpResource::window, width, height);
+            glViewport(0, 0, width, height);
+            scaler = glm::vec3(2.f / width, 2.f / height, 1);
+            setViewMatrix();
+            args = m.suffix();
+        } else if (std::regex_search(args, m, argPattern("bg", "background", stringPattern))) {
+            SsbpResource::addTexture("","",m[1]);
+            background = &SsbpResource::getTexture("","",m[1]);
+            args = m.suffix();
+        /*} else if (std::regex_search(tmp, m, argPattern("s", "stretch"))) {
+            tmp = m.suffix();
+            background.shader.use();
+            background.shader.setInt("u_BgType", stoul(m[1]));
+        } else if (std::regex_search(tmp, m, argPattern("p", "position"))) {
+            tmp = m.suffix();
+            if (background.texture && m[2].first[0] == 'p' && m[4].first[0] == 'p') {
+                background.shader.use();
+                background.shader.setVec2("u_Shift",
+                    (stof(m[1]) - 0.5 * windowWidth) / background.texture->width,
+                    (-stof(m[3]) - 0.75 * windowHeight) / background.texture->height);
+            } else {
+                std::cout << "Unsupported offset" << std::endl;
+            }*/
+        } else if (std::regex_search(args, m, std::regex("^\\s*~\\s*" stringPattern)) && m[1].str().find(',') != std::string::npos) {
+            argumentReplace(m[1]);
+            args = m.suffix();
+        //} else if (std::regex_search(args, m, std::regex("^\\s*\\+\\s*" stringPattern)) && std::regex_search(m[1].str(), std::regex("^(.+,){6}"))) {
+        //    // Add arg
+        //    // head,images\\accessory\\test.png,0,10,0,1,1
+        } else if (std::regex_search(args, m, std::regex("^\\s*" stringPattern)) && std::regex_search(m[1].str(), std::regex("\\.ssbp$"))) {
+            try {
+                _ssbp = &Ssbp::create(m[1]);
+            } catch (const std::invalid_argument &e) {
+                std::cerr << "Invalid SSBP file: " << m[1] << std::endl;
+                args = m.suffix();
+                continue;
+            }
+            play(_ssbp->animePacks.front().name, _ssbp->animePacks.front().animations.front().name, false);
+            args = m.suffix();
+        } else {
+            std::regex_search(args, m, std::regex("^\\s*" stringPattern));
+            std::cerr << "Invalid argument \"" << m[1] << "\"" << std::endl;
+            args = m.suffix();
+        }
+
+    if (!_ssbp) {
+        std::cout << "Drag an ssbp file here then press enter.\n";
+        std::string s; std::cin >> s;
+        _ssbp = &Ssbp::create(s);
+        play(_ssbp->animePacks.front().name, _ssbp->animePacks.front().animations.front().name, false);
+    }
+}
+
+void SsbpViewer::argumentReplace(const std::string &arg)
+{
+    if (!_ssbp) return;
+    size_t breakPos1 = arg.find(','),
+            breakPos2 = arg.find(',', breakPos1+1);
+    std::string toReplace = arg.substr(0, breakPos1),
+                source = arg.substr(breakPos1+1, breakPos2-breakPos1-1);
+
+    if (breakPos2 == std::string::npos && std::regex_match(source, std::regex(".*\\.png|.*\\.webp"))) {
+        std::filesystem::path relativePath = std::filesystem::relative(source, _ssbp->_path.parent_path() / _ssbp->imageBaseDir);
+        SsbpResource::addTexture(_ssbp->_path, _ssbp->imageBaseDir, relativePath.string());
+        bool found = false;
+        for (Cell &cell : _ssbp->cells)
+            if (cell.textureName == toReplace) {
+                cell.texturePath = relativePath.string();
+                cell.textureName = relativePath.stem().string();
+                found = true;
+            }
+        if (found) return;
+        for (Part &part : _animpack->parts)
+            if (part.name == toReplace && _animation->initialParts.at(part.index).cellIndex >= 0) {
+                _ssbp->cells.at(_animation->initialParts.at(part.index).cellIndex).texturePath = relativePath.string();
+                _ssbp->cells.at(_animation->initialParts.at(part.index).cellIndex).textureName = relativePath.stem().string();
+            }
+    } else if (breakPos2 != std::string::npos) {
+        std::string name = arg.substr(breakPos2+1),
+                    packName = name.substr(0, name.find('/')),
+                    animName = name.substr(name.find('/')+1);
+        auto partIt = std::find_if(_animpack->parts.begin(), _animpack->parts.end(), [&toReplace](const Part &part) { return part.name == toReplace; });
+        if (partIt == _animpack->parts.end()) return;
+        try {
+            Ssbp &ssbp = Ssbp::create(source);
+            auto packIt = std::find_if(ssbp.animePacks.begin(), ssbp.animePacks.end(), [&packName](const AnimePack &pack) { return pack.name == packName; });
+            if (packIt == ssbp.animePacks.end()) throw std::range_error("");
+            auto animIt = std::find_if(packIt->animations.begin(), packIt->animations.end(), [&animName](const Animation &anim) { return anim.name == animName; });
+            if (animIt == packIt->animations.end()) throw std::range_error("");
+            partIt->_anime = &ssbp;
+        } catch (const std::invalid_argument &e) {
+            std::cerr << "Failed to open requested SSBP file: " << source << std::endl; return;
+        } catch (const std::range_error &e) {
+            std::cerr << "Failed to access requested animation: " << name << std::endl; return;
+        }
+        partIt->type = PartType::Instance;
+        partIt->extAnime = name;
+        _partsAnime[partIt->index] = SsbpPlayer(*partIt->_anime);
+        _partsAnime[partIt->index].play(name);
+    } else {
+        std::cerr << "Invalid replace command: \"" << arg << '"' << std::endl;
+    }
 }
 
 void SsbpViewer::handleEvents()

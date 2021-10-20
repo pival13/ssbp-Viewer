@@ -5,20 +5,20 @@
 #include <GLFW/glfw3.h>
 #include <algorithm>
 
-SsbpPlayer::SsbpPlayer(const Ssbp &ssbp) : _ssbp(&ssbp) {}
+SsbpPlayer::SsbpPlayer(Ssbp &ssbp) : _ssbp(&ssbp) {}
 SsbpPlayer::~SsbpPlayer() {}
-SsbpPlayer &SsbpPlayer::operator=(const Ssbp &ssbp) { _ssbp = &ssbp; _animpack = nullptr; _animation = nullptr; _partsAnime.clear(); return *this; }
+SsbpPlayer &SsbpPlayer::operator=(Ssbp &ssbp) { _ssbp = &ssbp; _animpack = nullptr; _animation = nullptr; _partsAnime.clear(); return *this; }
 
 void SsbpPlayer::play(const std::string &anime, bool loop, int initFrame, int endFrame) { size_t p = anime.find('/'); play(anime.substr(0, p), anime.substr(p+1), loop, initFrame, endFrame); }
 void SsbpPlayer::play(const std::string &pack, const std::string &name, bool loop_, int initframe, int endframe)
 {
     _animpack = nullptr;
     _animation = nullptr;
-    for (const auto &animpack : _ssbp->animePacks)
+    for (auto &animpack : _ssbp->animePacks)
         if (animpack.name == pack) {
             _animpack = &animpack; break; }
     if (_animpack == nullptr) throw std::invalid_argument("No such animation pack: " + pack);
-    for (const auto &anim : _animpack->animations)
+    for (auto &anim : _animpack->animations)
         if (anim.name == name) {
             _animation = &anim; break; }
     if (_animation == nullptr) throw std::invalid_argument("No such animation: " + name);
@@ -34,7 +34,7 @@ void SsbpPlayer::play(const std::string &pack, const std::string &name, bool loo
     _partsAnime.clear();
     for (const Part &part : _animpack->parts)
         if (part.type == PartType::Instance) {
-            _partsAnime[part.index] = SsbpPlayer(*_ssbp);
+            _partsAnime[part.index] = SsbpPlayer(*part._anime);
             _partsAnime[part.index].play(part.extAnime);
         }
     update();
@@ -131,7 +131,7 @@ void SsbpPlayer::draw(const glm::mat4 &mat)
     for (size_t i = 0; i != parts.size(); ++i) {
         auto &partData = partsData.at(i);
         auto &initPartData = *std::find_if(initPartsData.begin(), initPartsData.end(), [partData](const InitData &part) {return part.index == partData.index;});
-        auto &matrix = _matrices.at(initPartData.index) * mat;
+        auto &matrix = mat * _matrices.at(initPartData.index);
 
         if (parts.at(partData.index).type == PartType::Null || partData.invisible || partData.opacity.value_or(initPartData.opacity) == 0) {
             continue;

@@ -18,7 +18,7 @@ class Ssbp {
         Ssbp() = default;
         explicit Ssbp(const Ssbp &) = delete;
         Ssbp &operator=(const Ssbp &) = delete;
-        Ssbp &operator=(Ssbp &&r) { _path = r._path; imageBaseDir = r.imageBaseDir; cells = std::move(r.cells); animePacks = std::move(r.animePacks); return *this; }
+        Ssbp &operator=(Ssbp &&r);
 
     private:
         Ssbp(const std::string &path);
@@ -65,6 +65,7 @@ class Part {
         Part *parent;
         PartType type;
         // enum alphaBlend
+        Ssbp *_anime;
         std::string extAnime;
         std::string extEffect;
         std::string color;
