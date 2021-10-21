@@ -26,11 +26,14 @@ struct Texture {
 };
 
 struct Quad {
+    static std::array<glm::vec4,4> originalColor;
+    static std::array<glm::vec2,4> fullTexture;
+
     Quad();
     ~Quad();
 
     void draw();
-    void draw(const std::array<glm::vec3,4> &vertex, const std::array<glm::vec2,4> &uvs, const std::array<glm::vec4,4> &colors/*, const Texture &texture*/);
+    void draw(const std::array<glm::vec3,4> &vertex, const std::array<glm::vec2,4> &uvs=fullTexture, const std::array<glm::vec4,4> &colors=originalColor);
     void set(const std::string &var, int value);
     void set(const std::string &var, float value);
     void set(const std::string &var, const glm::vec2 &value);

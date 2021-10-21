@@ -6,6 +6,7 @@
 #include <thread>
 #include <mutex>
 
+#include <glm/ext/vector_int2.hpp>
 #include <Magick++.h>
 
 class Saver {
@@ -20,7 +21,7 @@ class Saver {
         ~Saver();
 
     public:
-        Magick::Image screen() const;
+        Magick::Image screen(glm::ivec2 size={0,0}) const;
         Magick::Geometry bounds(const Magick::Image &image) const;
         Magick::Geometry bounds(const std::vector<Magick::Image> &image) const;
         Magick::Geometry bounds(const std::vector<Magick::Geometry> &image) const;

@@ -1,24 +1,18 @@
-#include "ssbpViewer.h"
-#include "ssbpResource.h"
-#include "Screenshot.hpp"
-
-#include <GLFW/glfw3.h>
-#include <Magick++.h>
+#include "SsbpViewer.h"
+#include "SsbpSaver.h"
 
 #include <iostream>
-
-#ifdef _DEBUG
-#define debug(s, ...) printf(s, __VA_ARGS__)
-#else
-#define debug(s, ...) {}
-#endif
 
 int main(int n, char **argv)
 {
 #ifndef _DEBUG
     try {
 #endif
+#if defined(SAVE_ANIM) || defined(SAVE_SPRITE)
+        SsbpSaver().run();
+#else
         SsbpViewer(n, argv).run();
+#endif
 #ifndef _DEBUG
     } catch (const std::exception &e) {
         std::cerr << e.what() << std::endl;

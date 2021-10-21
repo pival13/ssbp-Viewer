@@ -30,9 +30,11 @@ static GLFWwindow *initOpenGL()
     glEnable(GL_BLEND);
     glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     glClearColor(1,1,1,1);
-    glClear(GL_COLOR_BUFFER_BIT);
     return window;
 }
+
+std::array<glm::vec4,4> Quad::originalColor{glm::vec4{1,1,1,1},{1,1,1,1},{1,1,1,1},{1,1,1,1}};
+std::array<glm::vec2,4> Quad::fullTexture{glm::vec2{0,1},{0,0},{1,1},{1,0}};
 
 GLFWwindow *SsbpResource::window = initOpenGL();
 std::map<std::string, Ssbp> SsbpResource::_ssbps;
