@@ -7,8 +7,8 @@
 Ssbp &Ssbp::create(const std::string &path)
 {
     auto it = SsbpResource::_ssbps.find(path);
-    if (it != SsbpResource::_ssbps.end())
-        return it->second;
+    //if (it != SsbpResource::_ssbps.end())
+    //    return it->second;
     return (SsbpResource::_ssbps[path] = Ssbp(path));
 }
 
@@ -97,6 +97,7 @@ Part::Part(uint8_t *data, const PartData &ref)
     name = ref.name ? (char*)data + ref.name : "";
     index = ref.index;
     type = (PartType)ref.type;
+    blend = (BlendType)ref.alphaBlendType;
     extAnime = ref.animation ? (char*)data + ref.animation : "";
     extEffect = ref.effect ? (char*)data + ref.effect : "";
     color = ref.colorLabel ? (char*)data + ref.colorLabel : "";

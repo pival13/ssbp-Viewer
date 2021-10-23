@@ -1,4 +1,5 @@
 #include <iostream>
+#include <set>
 #include <GLFW/glfw3.h>
 
 #include "ASsbpViewer.h"
@@ -10,6 +11,7 @@ ASsbpViewer::ASsbpViewer()
     mover = glm::vec3(0, -0.75, 0);
     scaler = glm::vec3(2.f / width, 2.f / height, 1);
     setViewMatrix();
+    setBackgroundType(Fit);
 }
 
 ASsbpViewer::~ASsbpViewer()
@@ -24,11 +26,26 @@ void ASsbpViewer::render(bool useBackground)
 
     if (useBackground && background && background->loaded) {
         SsbpResource::quad.set("u_Texture", *background);
+        float w, h;
+        if (backgroundSize.percent()) {
+            w = 1; h = 1;
+        } else if (backgroundSize.less()) {
+            w = 1; h = float(background->height * width) / height / background->width;
+        } else if (backgroundSize.greater()) {
+            w = float(background->width * height) / width / background->height; h = 1;
+        } else if (backgroundSize.aspect()) {
+            w = float(backgroundSize.width() == 0 ? background->width : backgroundSize.width()) / width;
+            h = float(backgroundSize.height() == 0 ? background->height : backgroundSize.height()) / height;
+        } else if (background->width * height / background->height > width) {
+            w = float(background->width * height) / width / background->height; h = 1;
+        } else {
+            w = 1; h = float(background->height * width) / height / background->width;
+        }
         SsbpResource::quad.draw({
-            glm::vec3{(-1 - mover.x) / scaler.x, (-1 - mover.y) / scaler.y, 0},
             glm::vec3{(-1 - mover.x) / scaler.x, (1 - mover.y) / scaler.y, 0},
-            glm::vec3{(1 - mover.x) / scaler.x, (-1 - mover.y) / scaler.y, 0},
-            glm::vec3{(1 - mover.x) / scaler.x, (1 - mover.y) / scaler.y, 0},
+            glm::vec3{(-1 - mover.x) / scaler.x, (-(h*2-1) - mover.y) / scaler.y, 0},
+            glm::vec3{(w*2-1 - mover.x) / scaler.x, (1 - mover.y) / scaler.y, 0},
+            glm::vec3{(w*2-1 - mover.x) / scaler.x, (-(h*2-1) - mover.y) / scaler.y, 0},
         });
     }
 
@@ -39,8 +56,8 @@ void ASsbpViewer::render(bool useBackground)
 
 void ASsbpViewer::replace(const std::string &name, const std::filesystem::path &texture)
 {
-    if (!_ssbp) return;
-    std::filesystem::path relativePath = std::filesystem::relative(texture, _ssbp->_path.parent_path() / _ssbp->imageBaseDir);
+    if (!_ssbp || !_animpack || !_animation) throw std::runtime_error("replace cannot ba called without initializing an animation.");
+    std::filesystem::path relativePath = std::filesystem::relative(std::filesystem::absolute(texture), std::filesystem::absolute(_ssbp->_path.parent_path() / _ssbp->imageBaseDir));
     SsbpResource::addTexture(_ssbp->_path, _ssbp->imageBaseDir, relativePath.string());
     bool found = false;
     for (Cell &cell : _ssbp->cells)
@@ -50,18 +67,31 @@ void ASsbpViewer::replace(const std::string &name, const std::filesystem::path &
             found = true;
         }
     if (found) return;
-    for (AnimePack &pack : _ssbp->animePacks)
+    for (AnimePack &pack : _ssbp->animePacks) {
         for (Part &part : pack.parts)
-            if (part.name == name && _animation->initialParts.at(part.index).cellIndex >= 0) {
-                _ssbp->cells.at(_animation->initialParts.at(part.index).cellIndex).texturePath = relativePath.string();
-                _ssbp->cells.at(_animation->initialParts.at(part.index).cellIndex).textureName = relativePath.stem().string();
-            }
+            if (part.name == name)
+                for (Animation &anim : pack.animations)
+                    if (anim.initialParts.at(part.index).cellIndex >= 0) {
+                        _ssbp->cells.at(anim.initialParts.at(part.index).cellIndex).texturePath = relativePath.string();
+                        _ssbp->cells.at(anim.initialParts.at(part.index).cellIndex).textureName = relativePath.stem().string();
+                        part.type = PartType::Normal;
+                        part.extAnime.clear();
+                        part._anime = nullptr;
+                        goto nextPack;
+                    }
+        nextPack: continue;
+    }
 }
 
 void ASsbpViewer::replace(const std::string &name, const std::filesystem::path &ssbppath, const std::string &anim)
 {
-    auto partIt = std::find_if(_animpack->parts.begin(), _animpack->parts.end(), [&name](const Part &part) { return part.name == name; });
-    if (partIt == _animpack->parts.end()) return;
+    if (!_ssbp || !_animpack || !_animation) throw std::runtime_error("replace cannot ba called without initializing an animation.");
+    std::set<Part*> parts;
+    for (AnimePack &pack : _ssbp->animePacks)
+        for (Part &part : pack.parts)
+            if (part.name == name)
+                parts.insert(&part);
+    if (parts.size() == 0) return;
     try {
         Ssbp &ssbp = Ssbp::create(ssbppath.string());
         std::string packName = anim.substr(0, anim.find('/'));
@@ -70,14 +100,47 @@ void ASsbpViewer::replace(const std::string &name, const std::filesystem::path &
         std::string animName = anim.substr(anim.find('/')+1);
         auto animIt = std::find_if(packIt->animations.begin(), packIt->animations.end(), [&animName](const Animation &anim) { return anim.name == animName; });
         if (animIt == packIt->animations.end()) throw std::range_error("");
-        partIt->_anime = &ssbp;
+        for (Part *part : parts)
+            part->_anime = &ssbp;
     } catch (const std::invalid_argument &e) {
         std::cerr << "Failed to open requested SSBP file: " << ssbppath << std::endl; return;
     } catch (const std::range_error &e) {
         std::cerr << "Failed to access requested animation: " << anim << std::endl; return;
     }
-    partIt->type = PartType::Instance;
-    partIt->extAnime = anim;
-    _partsAnime[partIt->index] = SsbpPlayer(*partIt->_anime);
-    _partsAnime[partIt->index].play(anim);
+    for (Part *part : parts) {
+        part->type = PartType::Instance;
+        part->extAnime = anim;
+        _partsAnime[part->index] = SsbpPlayer(*part->_anime);
+        _partsAnime[part->index].play(anim);
+    }
+}
+
+void ASsbpViewer::setBackgroundType(BackgroundType type)
+{
+    if (type == BackgroundType::Fit)
+        backgroundSize = Magick::Geometry("0x0%");
+    else if (type == BackgroundType::FitWidth)
+        backgroundSize = Magick::Geometry("0x0<");
+    else if (type == BackgroundType::FitHeight)
+        backgroundSize = Magick::Geometry("0x0>");
+    else if (type == BackgroundType::Stretch)
+        backgroundSize = Magick::Geometry("0x0");
+    else if (type == BackgroundType::Original)
+        backgroundSize = Magick::Geometry("0x0!");
+    else
+        throw std::invalid_argument("Background scale and size arguments must be specified with size");
+}
+
+void ASsbpViewer::setBackgroundType(BackgroundType type, double x, double y)
+{
+    if (type == BackgroundType::Scale) {
+        if (background == nullptr)
+            throw std::invalid_argument("Argument scale must be used after the initialization of the background");
+        backgroundSize = Magick::Geometry(size_t(background->width * x), size_t(background->height * y));
+        backgroundSize.aspect(true);
+    } else if (type == BackgroundType::Size) {
+        backgroundSize = Magick::Geometry(size_t(x), size_t(y));
+        backgroundSize.aspect(true);
+    } else
+        setBackgroundType(type);
 }

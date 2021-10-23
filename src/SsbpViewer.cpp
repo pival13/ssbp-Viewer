@@ -55,13 +55,15 @@ void SsbpViewer::run()
 #define matchArg(smallArg, longArg, expected) \
     (std::regex_match(argv[n], m, std::regex("--" longArg "=" expected, std::regex_constants::icase)) || \
     (n+1 < argc && \
-        std::regex_match(argv[n], std::regex("-" smallArg "|--" longArg, std::regex_constants::icase)) && \
+        std::regex_match(argv[n], std::regex(smallArg[0] ? "-" smallArg "|--" longArg : "--" longArg, std::regex_constants::icase)) && \
         std::regex_match(argv[n+1], m, std::regex(expected, std::regex_constants::icase)) && (++n||true)))
 #define matchPrefix(prefix, expected) \
     (std::regex_match(argv[n], m, std::regex(prefix expected, std::regex_constants::icase)) || \
     (n+1 < argc && \
         std::regex_match(argv[n], std::regex(prefix, std::regex_constants::icase)) && \
         std::regex_match(argv[n+1], m, std::regex(expected, std::regex_constants::icase)) && (++n||true)))
+#define matchUniqArg(smallArg, longArg) \
+    std::regex_match(argv[n], m, std::regex("-" smallArg "|--" longArg, std::regex_constants::icase))
 void SsbpViewer::handleArguments(int argc, char **argv)
 {
     std::cmatch m;
@@ -81,11 +83,21 @@ void SsbpViewer::handleArguments(int argc, char **argv)
         } else if (matchArg("bg", "background", "(.+)")) {
             SsbpResource::addTexture("","",m[1]);
             background = &SsbpResource::getTexture("","",m[1]);
-        /*} else if (std::regex_search(tmp, m, argPattern("s", "stretch"))) {
-            tmp = m.suffix();
-            background.shader.use();
-            background.shader.setInt("u_BgType", stoul(m[1]));
-        } else if (std::regex_search(tmp, m, argPattern("p", "position"))) {
+        } else if (matchUniqArg("f", "fit")) {
+            setBackgroundType(Fit);
+        } else if (matchUniqArg("fh","fitHeight")) {
+            setBackgroundType(FitHeight);
+        } else if (matchUniqArg("fw","fitWidth")) {
+            setBackgroundType(FitWidth);
+        } else if (matchUniqArg("s","stretch")) {
+            setBackgroundType(Stretch);
+        } else if (matchUniqArg("o","original")) {
+            setBackgroundType(Original);
+        } else if (matchArg("", "scale", "(\\d+(?:\\.\\d+)?)(?:x(\\d+(?:\\.\\d+)?))?")) {
+            setBackgroundType(Scale, std::stod(m[1]), std::stod(m[2].matched ? m[2] : m[1]));
+        } else if (matchArg("", "size", "(\\d+)x(\\d+)")) {
+            setBackgroundType(Size, std::stol(m[1]), std::stol(m[2]));
+        /*} else if (std::regex_search(tmp, m, argPattern("p", "position"))) {
             tmp = m.suffix();
             if (background.texture && m[2].first[0] == 'p' && m[4].first[0] == 'p') {
                 background.shader.use();
@@ -96,6 +108,7 @@ void SsbpViewer::handleArguments(int argc, char **argv)
                 std::cout << "Unsupported offset" << std::endl;
             }*/
         } else if (matchPrefix("~", "([^,]+),([^,]+)(?:,(.+))?")) {
+            if (!_ssbp) continue;
             if (!m[3].matched)
                 replace(m[1].str(), m[2].str());
             else

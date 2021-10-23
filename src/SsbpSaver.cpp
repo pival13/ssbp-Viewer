@@ -15,6 +15,7 @@ SsbpSaver::SsbpSaver()
     glBindRenderbuffer(GL_RENDERBUFFER, renderbuffer);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, width, height);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, renderbuffer);
+    setBackgroundType(Original);
 }
 
 SsbpSaver::~SsbpSaver()
@@ -95,14 +96,13 @@ void SsbpSaver::saveAnimations()
 #           endif
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
-        //No wep
     }
 #   if (defined(SAVE_SPRITE))
         try { play("body_anim/Idle"); } catch (...) { return; }
-        replace("Wep_BaseR", "no_wep_R.png");
-        replace("Wep_BaseR_Add", "no_wep_R2.png");
-        replace("Wep_BaseL", "no_wep_L.png");
-        replace("Wep_BaseL_Add", "no_wep_L2.png");
+        replace("Wep_BaseR", "./no_wep_R.png");
+        replace("Wep_BaseR_Add", "./no_wep_R2.png");
+        replace("Wep_BaseL", "./no_wep_L.png");
+        replace("Wep_BaseL_Add", "./no_wep_L2.png");
         setFrame(0);
         glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
         render(false);
@@ -113,7 +113,8 @@ void SsbpSaver::saveAnimations()
 }
 
 #define stringPattern(except) "((?:[^\\s\\\\" except "]|\\\\\\s|\\\\)+)"
-#define matchArg(smallArg, longArg, expected) std::regex_search(args, m, std::regex("^\\s*(?:-" smallArg "\\s*|--" longArg "(?:=\\s*|\\s+))" expected, std::regex_constants::icase))
+#define matchArg(smallArg, longArg, expected) std::regex_search(args, m, std::regex(smallArg[0] ? "^\\s*(?:-" smallArg "\\s*|--" longArg "(?:=\\s*|\\s+))" expected : "^\\s*--" longArg "(?:=\\s*|\\s+)" expected, std::regex_constants::icase))
+#define matchUniqArg(smallArg, longArg) std::regex_search(args, m, std::regex("^\\s*(?:-" smallArg "|--" longArg ")\\b", std::regex_constants::icase))
 #define matchPrefix(prefix, expected) std::regex_search(args, m, std::regex("^\\s*" prefix "\\s*" expected, std::regex_constants::icase))
 void SsbpSaver::handleArguments(std::string args)
 {
@@ -133,14 +134,26 @@ void SsbpSaver::handleArguments(std::string args)
             glViewport(0, 0, width, height);
             scaler = glm::vec3(2.f / width, 2.f / height, 1);
             setViewMatrix();
-        } else if (matchArg("bg", "background", "(.+)")) {
+        } else if (matchArg("bg", "background", stringPattern(""))) {
             SsbpResource::addTexture("","",m[1]);
             background = &SsbpResource::getTexture("","",m[1]);
-        /*} else if (std::regex_search(tmp, m, argPattern("s", "stretch"))) {
-            tmp = m.suffix();
-            background.shader.use();
-            background.shader.setInt("u_BgType", stoul(m[1]));
-        } else if (std::regex_search(tmp, m, argPattern("p", "position"))) {
+        } else if (matchUniqArg("f", "fit")) {
+            setBackgroundType(Fit);
+        } else if (matchUniqArg("fh","fitHeight")) {
+            setBackgroundType(FitHeight);
+        } else if (matchUniqArg("fw","fitWidth")) {
+            setBackgroundType(FitWidth);
+        } else if (matchUniqArg("s","stretch")) {
+            setBackgroundType(Stretch);
+        } else if (matchUniqArg("o","original")) {
+            setBackgroundType(Original);
+        } else if (matchArg("", "scale", "(\\d+(?:\\.\\d+)?)(?:x(\\d+(?:\\.\\d+)?))?")) {
+            setBackgroundType(Scale, std::stod(m[1]), std::stod(m[2].matched ? m[2] : m[1]));
+        } else if (matchArg("", "size", "(\\d+)x(\\d+)")) {
+            setBackgroundType(Size, std::stol(m[1]), std::stol(m[2]));
+        } else if (matchArg("", "shift", "(\\d+(?:\\.\\d+)?)(px|%)x(\\d+(?:\\.\\d+)?)(px|%)")) {
+            
+        /*} else if (std::regex_search(tmp, m, argPattern("p", "position"))) {
             tmp = m.suffix();
             if (background.texture && m[2].first[0] == 'p' && m[4].first[0] == 'p') {
                 background.shader.use();
@@ -161,6 +174,7 @@ void SsbpSaver::handleArguments(std::string args)
         } else if (std::regex_search(args, m, std::regex("\\s*(\\S+\\.ssbp)\\b"))) {
             try {
                 _ssbp = &Ssbp::create(m[1]);
+                play(_ssbp->animePacks.front().name, _ssbp->animePacks.front().animations.front().name);
             } catch (const std::invalid_argument &e) {
                 std::cerr << "Invalid SSBP file: " << m[1] << std::endl;
             }
@@ -181,8 +195,10 @@ bool SsbpSaver::shouldIgnoreAnim(const std::string &anim) const
             if (std::find(savedSprite.begin(), savedSprite.end(), anim) == savedSprite.end())
                 return true;
 #       endif
-        if (std::regex_search(_ssbp->_path.string(), std::regex("_PairSub$", std::regex_constants::icase)))
+        if (std::regex_search(_ssbp->_path.stem().string(), std::regex("_PairSub$", std::regex_constants::icase)))
             return std::find(savedPairSub.begin(), savedPairSub.end(), anim) == savedPairSub.end();
+        else if (std::regex_search(_ssbp->_path.stem().string(), std::regex("_PairMain$", std::regex_constants::icase)) && anim == "Pairpose")
+            return true;
         return false;
 #   endif
 }

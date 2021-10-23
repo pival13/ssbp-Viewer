@@ -14,7 +14,7 @@ class SsbpSaver : public ASsbpViewer {
         void saveAnimations();
 
         bool shouldIgnoreAnim(const std::string &anim) const;
-    
+
     private:
         unsigned int framebuffer;
         unsigned int renderbuffer;

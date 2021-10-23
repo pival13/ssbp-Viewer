@@ -43,9 +43,9 @@ class SsbpPlayer {
         int end = -1;
 
     protected:
-        Ssbp *_ssbp;
-        AnimePack *_animpack;
-        Animation *_animation;
+        Ssbp *_ssbp = nullptr;
+        AnimePack *_animpack = nullptr;
+        Animation *_animation = nullptr;
         float _t;
         std::map<size_t, SsbpPlayer> _partsAnime;
     

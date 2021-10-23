@@ -34,7 +34,7 @@ static GLFWwindow *initOpenGL()
 }
 
 std::array<glm::vec4,4> Quad::originalColor{glm::vec4{1,1,1,1},{1,1,1,1},{1,1,1,1},{1,1,1,1}};
-std::array<glm::vec2,4> Quad::fullTexture{glm::vec2{0,1},{0,0},{1,1},{1,0}};
+std::array<glm::vec2,4> Quad::fullTexture{glm::vec2{0,0},{0,1},{1,0},{1,1}};
 
 GLFWwindow *SsbpResource::window = initOpenGL();
 std::map<std::string, Ssbp> SsbpResource::_ssbps;

@@ -16,16 +16,22 @@ class ASsbpViewer : protected SsbpPlayer {
     protected:
         inline void setViewMatrix() { SsbpResource::quad.set("u_View", glm::scale(glm::translate(glm::mat4(1), mover), scaler)); }
 
+        void render(bool renderBackground=true);
+
         void replace(const std::string &name, const std::filesystem::path &texture);
         void replace(const std::string &name, const std::filesystem::path &ssbp, const std::string &animation);
-
-        void render(bool renderBackground=true);
+        enum BackgroundType { Fit, FitWidth, FitHeight, Stretch, Original, Scale, Size };
+        void setBackgroundType(BackgroundType type);
+        void setBackgroundType(BackgroundType type, double x, double y);
+        //void setBackgroundShift();
 
     protected:
         glm::vec3 mover;
         glm::vec3 scaler;
         int width, height;
 
-        Saver saver;
         const Texture *background;
+        Magick::Geometry backgroundSize;
+
+        Saver saver;
 };

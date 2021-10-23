@@ -151,17 +151,18 @@ void SsbpPlayer::draw(const glm::mat4 &mat)
 void SsbpPlayer::drawCell(const Cell &cell, const glm::mat4 &mat, const FrameData &data)
 {
     const InitData &initPartData = *std::find_if(_animation->initialParts.begin(), _animation->initialParts.end(), [&data](const InitData &part) {return part.index == data.index;});
+    const Part &part = _animpack->parts.at(data.index);
     const Texture &texture = SsbpResource::getTexture(_ssbp->_path, _ssbp->imageBaseDir, cell.texturePath);
     if (!texture.loaded) return;
     SsbpResource::quad.set("u_Texture", texture);
     
-    BlendType blending = data.colorBlend.value_or(BlendType::Mix);
+    BlendType blending = data.colorBlend.value_or(part.blend);
     if (blending != Mix) {
         SsbpResource::quad.set("u_BlendType", blending);
         if (blending == Add)
             glBlendFuncSeparate(GL_ONE, GL_ONE, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
         else
-            std::cerr << "Unsupported blending on: " << getFullAnimeName() << ", frame " << getFrame() << ", part " << _animpack->parts.at(data.index).name << ": " << blending << std::endl;
+            std::cerr << "Unsupported blending on: " << getFullAnimeName() << ", frame " << getFrame() << ", part " << part.name << ": " << blending << std::endl;
     }
 
     if (data.textureRotation.value_or(initPartData.textureRotation) != 0 ||
@@ -169,7 +170,7 @@ void SsbpPlayer::drawCell(const Cell &cell, const glm::mat4 &mat, const FrameDat
         data.textureShift.y.value_or(initPartData.textureShift.y) != 0 ||
         data.textureScale.x.value_or(initPartData.textureScale.x) != 1 ||
         data.textureScale.y.value_or(initPartData.textureScale.y) != 1)
-            std::cerr << "Unsupported transform on texture: " << getFullAnimeName() << ", frame " << getFrame() << ", part " << _animpack->parts.at(data.index).name << std::endl;
+            std::cerr << "Unsupported transform on texture: " << getFullAnimeName() << ", frame " << getFrame() << ", part " << part.name << std::endl;
 
     float width = data.size.x.value_or(initPartData.size.x);
     float height = data.size.y.value_or(initPartData.size.y);

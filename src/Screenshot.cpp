@@ -55,7 +55,7 @@ void Saver::save(const std::string &name, const std::vector<Image> &images, cons
     }
     imgs.front().animationIterations(looping == NoLoop ? 1 : 0);
     if (looping == SlowLoop) {
-        imgs.front().animationDelay(30);
+        imgs.front().animationDelay(50);
         imgs.back().animationDelay(100);
     }
 

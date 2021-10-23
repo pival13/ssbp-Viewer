@@ -64,7 +64,7 @@ class Part {
         int index;
         Part *parent;
         PartType type;
-        // enum alphaBlend
+        BlendType blend;
         Ssbp *_anime;
         std::string extAnime;
         std::string extEffect;
