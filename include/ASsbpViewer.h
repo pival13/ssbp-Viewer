@@ -22,8 +22,8 @@ class ASsbpViewer : protected SsbpPlayer {
         void replace(const std::string &name, const std::filesystem::path &ssbp, const std::string &animation);
         enum BackgroundType { Fit, FitWidth, FitHeight, Stretch, Original, Scale, Size };
         void setBackgroundType(BackgroundType type);
-        void setBackgroundType(BackgroundType type, double x, double y);
-        //void setBackgroundShift();
+        void setBackgroundType(BackgroundType type, const glm::vec2 &size);
+        void shiftBackground(const glm::vec2 &shift, bool isPercent);
 
     protected:
         glm::vec3 mover;

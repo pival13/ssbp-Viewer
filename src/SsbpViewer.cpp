@@ -94,19 +94,18 @@ void SsbpViewer::handleArguments(int argc, char **argv)
         } else if (matchUniqArg("o","original")) {
             setBackgroundType(Original);
         } else if (matchArg("", "scale", "(\\d+(?:\\.\\d+)?)(?:x(\\d+(?:\\.\\d+)?))?")) {
-            setBackgroundType(Scale, std::stod(m[1]), std::stod(m[2].matched ? m[2] : m[1]));
+            setBackgroundType(Scale, {std::stod(m[1]), std::stod(m[2].matched ? m[2] : m[1])});
         } else if (matchArg("", "size", "(\\d+)x(\\d+)")) {
-            setBackgroundType(Size, std::stol(m[1]), std::stol(m[2]));
-        /*} else if (std::regex_search(tmp, m, argPattern("p", "position"))) {
-            tmp = m.suffix();
-            if (background.texture && m[2].first[0] == 'p' && m[4].first[0] == 'p') {
-                background.shader.use();
-                background.shader.setVec2("u_Shift",
-                    (stof(m[1]) - 0.5 * windowWidth) / background.texture->width,
-                    (-stof(m[3]) - 0.75 * windowHeight) / background.texture->height);
-            } else {
-                std::cout << "Unsupported offset" << std::endl;
-            }*/
+            setBackgroundType(Size, {std::stol(m[1]), std::stol(m[2])});
+        } else if (matchArg("", "shift", "(-?\\d+(?:\\.\\d+)?)x(-?\\d+(?:\\.\\d+)?)(px|%)")) {
+            shiftBackground({std::stod(m[1]), std::stod(m[2])}, m[3] == "%");
+        } else if (matchArg("p", "position", "(-?\\d+(?:\\.\\d+)?)x(-?\\d+(?:\\.\\d+)?)(px|%)")) {
+            mover = glm::vec3{
+                std::stod(m[1]) * (m[3] == "%" ? width / 50.f : 2.f / width) - 1,
+                std::stod(m[2]) * (m[3] == "%" ? height / 50.f : 2.f / height) - 1,
+                0
+            };
+            setViewMatrix();
         } else if (matchPrefix("~", "([^,]+),([^,]+)(?:,(.+))?")) {
             if (!_ssbp) continue;
             if (!m[3].matched)

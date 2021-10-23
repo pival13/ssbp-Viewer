@@ -19,6 +19,7 @@ add_compile_options(
 
 set(SOURCES
     src/glad.c
+    src/main.cpp
 
     src/SsbpResource.cpp
     src/SsbpReader.cpp
@@ -26,13 +27,11 @@ set(SOURCES
 
     src/Screenshot.cpp
     src/ASsbpViewer.cpp
-    src/SsbpViewer.cpp
-    src/SsbpSaver.cpp
 )
 
 add_executable(${PROJECT}
     ${SOURCES}
-    src/main.cpp
+    src/SsbpViewer.cpp
 )
 
 target_include_directories(${PROJECT} PRIVATE
@@ -60,7 +59,7 @@ add_custom_command(
 
 add_executable(SsbpSaver
     ${SOURCES}
-    src/main.cpp
+    src/SsbpSaver.cpp
 )
 
 target_include_directories(SsbpSaver PRIVATE
@@ -82,10 +81,10 @@ target_link_libraries(SsbpSaver
 
 target_compile_definitions(SsbpSaver PUBLIC
     SAVE_SPRITE
+    SAVE_ANIM
 )
 
 add_custom_command(
     TARGET SsbpSaver POST_BUILD
-    #COMMAND $<IF:$<PLATFORM_ID:Windows>,dir,ls> "${ImageMagick_INCLUDE_DIRS}/.."
     COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:SsbpSaver>" "${PROJECT_SOURCE_DIR}/bin"
 )

@@ -41,11 +41,13 @@ void ASsbpViewer::render(bool useBackground)
         } else {
             w = 1; h = float(background->height * width) / height / background->width;
         }
+        float x = float(backgroundSize.xOff()) / width;
+        float y = float(backgroundSize.yOff()) / height;
         SsbpResource::quad.draw({
-            glm::vec3{(-1 - mover.x) / scaler.x, (1 - mover.y) / scaler.y, 0},
-            glm::vec3{(-1 - mover.x) / scaler.x, (-(h*2-1) - mover.y) / scaler.y, 0},
-            glm::vec3{(w*2-1 - mover.x) / scaler.x, (1 - mover.y) / scaler.y, 0},
-            glm::vec3{(w*2-1 - mover.x) / scaler.x, (-(h*2-1) - mover.y) / scaler.y, 0},
+            glm::vec3{(x*2-1 - mover.x) / scaler.x, (y*2+1 - mover.y) / scaler.y, 0},
+            glm::vec3{(x*2-1 - mover.x) / scaler.x, ((y-h)*2+1 - mover.y) / scaler.y, 0},
+            glm::vec3{((x+w)*2-1 - mover.x) / scaler.x, (y*2+1 - mover.y) / scaler.y, 0},
+            glm::vec3{((x+w)*2-1 - mover.x) / scaler.x, ((y-h)*2+1 - mover.y) / scaler.y, 0},
         });
     }
 
@@ -117,6 +119,7 @@ void ASsbpViewer::replace(const std::string &name, const std::filesystem::path &
 
 void ASsbpViewer::setBackgroundType(BackgroundType type)
 {
+    ssize_t x = backgroundSize.xOff(), y = backgroundSize.yOff();
     if (type == BackgroundType::Fit)
         backgroundSize = Magick::Geometry("0x0%");
     else if (type == BackgroundType::FitWidth)
@@ -129,18 +132,34 @@ void ASsbpViewer::setBackgroundType(BackgroundType type)
         backgroundSize = Magick::Geometry("0x0!");
     else
         throw std::invalid_argument("Background scale and size arguments must be specified with size");
+    backgroundSize.xOff(x), backgroundSize.yOff(y);
 }
 
-void ASsbpViewer::setBackgroundType(BackgroundType type, double x, double y)
+void ASsbpViewer::setBackgroundType(BackgroundType type, const glm::vec2 &size)
 {
     if (type == BackgroundType::Scale) {
         if (background == nullptr)
             throw std::invalid_argument("Argument scale must be used after the initialization of the background");
-        backgroundSize = Magick::Geometry(size_t(background->width * x), size_t(background->height * y));
+        else if (!background->loaded)
+            return;
+        backgroundSize = Magick::Geometry(size_t(background->width * size.x), size_t(background->height * size.y));
         backgroundSize.aspect(true);
     } else if (type == BackgroundType::Size) {
-        backgroundSize = Magick::Geometry(size_t(x), size_t(y));
+        backgroundSize = Magick::Geometry(size_t(size.x), size_t(size.y));
         backgroundSize.aspect(true);
     } else
         setBackgroundType(type);
+}
+
+void ASsbpViewer::shiftBackground(const glm::vec2 &shift, bool isPercent)
+{
+    if (isPercent) {
+        if (!background) throw std::invalid_argument("Argument shift must be used after the initialization of the background");
+        else if (!background->loaded) return;
+        backgroundSize.xOff(ssize_t(shift.x * background->width / 100.f));
+        backgroundSize.yOff(ssize_t(shift.y * background->height / 100.f));
+    } else {
+        backgroundSize.xOff(ssize_t(shift.x));
+        backgroundSize.yOff(ssize_t(shift.y));
+    }
 }
