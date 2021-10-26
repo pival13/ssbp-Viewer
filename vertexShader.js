@@ -10,7 +10,7 @@ uniform mat4 u_View;
 
 void main()
 {
-    gl_Position = /*u_View **/ vec4(_vertex, 1);
+    gl_Position = u_View * vec4(_vertex, 1);
     vertexColor = _color;
     uv = _uv;
 }`;

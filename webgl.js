@@ -52,16 +52,16 @@ export function initialize(canvas) {
 
     quad.setInt     = function (name, v) { gl.useProgram(quad.id); gl.uniform1i(gl.getUniformLocation(quad.id, name), v); };
     quad.setFloat   = function (name, v) { gl.useProgram(quad.id); gl.uniform1f(gl.getUniformLocation(quad.id, name), v); };
-    quad.setvec2    = function (name, v) { gl.useProgram(quad.id); gl.uniform2f(gl.getUniformLocation(quad.id, name), v.x, x.y); };
-    quad.setvec3    = function (name, v) { gl.useProgram(quad.id); gl.uniform3f(gl.getUniformLocation(quad.id, name), v.x, v.y, v.z); };
-    quad.setvec4    = function (name, v) { gl.useProgram(quad.id); gl.uniform4f(gl.getUniformLocation(quad.id, name), v.x, v.y, v.z, v.w); };
-    quad.setmat4    = function (name, v) { gl.useProgram(quad.id); (new WebGL2RenderingContext()).uniformMatrix4fv(gl.getUniformLocation(quad.id, name), false, new Float32Array(v)); };
-    quad.setTexture = function (name, v) {
+    quad.setVec2    = function (name, v) { gl.useProgram(quad.id); gl.uniform2f(gl.getUniformLocation(quad.id, name), v.x, x.y); };
+    quad.setVec3    = function (name, v) { gl.useProgram(quad.id); gl.uniform3f(gl.getUniformLocation(quad.id, name), v.x, v.y, v.z); };
+    quad.setVec4    = function (name, v) { gl.useProgram(quad.id); gl.uniform4f(gl.getUniformLocation(quad.id, name), v.x, v.y, v.z, v.w); };
+    quad.setMat4    = function (name, v) { gl.useProgram(quad.id); gl.uniformMatrix4fv(gl.getUniformLocation(quad.id, name), true, new Float32Array(v)); };
+    quad.setTexture = function (name, texture) {
         gl.useProgram(quad.id);
         gl.uniform1i(gl.getUniformLocation(quad.id, name), quad.textureId);
         gl.activeTexture(gl.TEXTURE0 + quad.textureId);
         quad.textureId += 1;
-        gl.bindTexture(gl.TEXTURE_2D, v);//TODO
+        gl.bindTexture(gl.TEXTURE_2D, texture.id);
     };
     quad.draw = function (vertices, uvs, colors) {
         gl.useProgram(quad.id);
@@ -74,3 +74,34 @@ export function initialize(canvas) {
         quad.textureId = 0
     };
 }
+
+export function loadTexture(path) {
+    const texture = {
+        path: path,
+        id: gl.createTexture(),
+        width: 0,
+        height: 0,
+        loaded: false
+    };
+    gl.bindTexture(gl.TEXTURE_2D, texture.id);
+
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+
+    const image = new Image();
+    image.onload = function() {
+        console.log('Texture loaded');
+        texture.height = image.height;
+        texture.width = image.width;
+        gl.bindTexture(gl.TEXTURE_2D, texture.id);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+        gl.generateMipmap(gl.TEXTURE_2D);
+        texture.loaded = true;
+    };
+    image.onerror = function(ev, source, line, col, err) { console.error(ev, source, line, col, err) }
+    image.src = path;
+    return texture;
+};

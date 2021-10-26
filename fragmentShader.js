@@ -4,11 +4,12 @@ precision mediump float;
 varying vec4 vertexColor;
 varying vec2 uv;
 
+uniform bool u_UseTexture;
 uniform sampler2D u_Texture;
 uniform int u_BlendType;
 
 void main() {
-    vec4 color = vec4(1,1,1,1);// texture2D(u_Texture, uv);
+    vec4 color = u_UseTexture ? texture2D(u_Texture, uv) : vec4(1,1,1,1);
 
     gl_FragColor = color * vertexColor;
     if (u_BlendType == 2) // Add
