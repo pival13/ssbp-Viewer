@@ -1,6 +1,6 @@
 import {loadSsbp} from './loadSsbp.js';
 import {print} from './printer.js';
-import {initialize as initWebGL, quad, loadTexture} from './webgl.js';
+import {initialize as initWebGL, quad, loadTexture, clear} from './webgl.js';
 import {translate, rotate, scale, identity} from './math.js';
 
 console.log(scale)
@@ -26,6 +26,7 @@ const texture = loadTexture(".\\images\\background.png");
 let interval, timeout;
 interval = setInterval(() => {
     if (!texture.loaded) return;
+    clear();
     quad.setInt('u_UseTexture', true);
     quad.setTexture('u_Texture', texture);
     quad.draw([

@@ -4,10 +4,10 @@ import fragmentCode from './fragmentShader.js';
 let gl;
 export const quad = {};
 
+export function clear() { gl.clear(gl.COLOR_BUFFER_BIT); }
+
 export function initialize(canvas) {
-    canvas = document.getElementById("drawer");
     gl = canvas.getContext("webgl2");
-    //gl = (new WebGL2RenderingContext());
     
     if (gl === null)
         throw "Unable to initialize WebGL. Your browser or machine may not support it.";
@@ -47,8 +47,10 @@ export function initialize(canvas) {
     gl.bindAttribLocation(quad.id, 2, '_color');
     gl.linkProgram(quad.id);
 
-    gl.clearColor(0.5, 0.5, 0.5, 1.0);
+    gl.clearColor(0.3, 0.1, 0.3, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.enable(gl.BLEND);
+    gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
     quad.setInt     = function (name, v) { gl.useProgram(quad.id); gl.uniform1i(gl.getUniformLocation(quad.id, name), v); };
     quad.setFloat   = function (name, v) { gl.useProgram(quad.id); gl.uniform1f(gl.getUniformLocation(quad.id, name), v); };
@@ -93,7 +95,6 @@ export function loadTexture(path) {
 
     const image = new Image();
     image.onload = function() {
-        console.log('Texture loaded');
         texture.height = image.height;
         texture.width = image.width;
         gl.bindTexture(gl.TEXTURE_2D, texture.id);
@@ -102,6 +103,7 @@ export function loadTexture(path) {
         texture.loaded = true;
     };
     image.onerror = function(ev, source, line, col, err) { console.error(ev, source, line, col, err) }
+    image.crossOrigin = "anonymous";
     image.src = path;
     return texture;
 };
