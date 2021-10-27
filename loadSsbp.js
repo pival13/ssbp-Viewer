@@ -6,16 +6,16 @@ export async function loadSsbp(file) {
     }));
     const data = new Uint8Array(file);
     const reader = new DataView(file);
-    function readInt(off) { return reader.getInt32(off, true); }//  file[off] + (file[off+1] << 010) + (file[off+2] << 020) + (file[off+3] << 030); }
+    function readInt(off) { return reader.getInt32(off, true); }
     function readUInt(off) { return reader.getUint32(off, true); }
     function readFloat(off) { return reader.getFloat32(off, true); }
     function readShort(off) { return reader.getInt16(off, true); }
     function readUShort(off) { return reader.getUint16(off, true); }
     function readStringSize(off, size) { return String.fromCharCode.apply(null, data.slice(off, off+size)); };
     function readString(off) { off = readUInt(off); return off === 0 ? "" : readStringSize(off, data.indexOf(0, off)-off); };
-    function readVec2(off) { return {x: readUShort(off), y: readUShort(off+2)}; };
+    function readVec2(off) { return {x: readShort(off), y: readShort(off+2)}; };
     function readVec2f(off) { return {x: readFloat(off), y: readFloat(off+4)}; };
-    function readVec3(off) { return {x: readUShort(off), y: readUShort(off+2), z: readUShort(off+4)}; };
+    function readVec3(off) { return {x: readShort(off), y: readShort(off+2), z: readShort(off+4)}; };
     function readVec3f(off) { return {x: readFloat(off), y: readFloat(off+4), z: readFloat(off+8)}; };
     function arrayOf(count, generator, off, size) { return Array.from({length: count}, (_,i) => generator(off+i*size)) };
 
@@ -26,7 +26,7 @@ export async function loadSsbp(file) {
         version: readUInt(4),
         flags: readUInt(8),
         imageBaseDir: readString(12),
-        cells: arrayOf(/*readShort(28)*/0, (off) => Object({
+        cells: arrayOf(readShort(28), (off) => Object({
             name: readString(off+0),
             texture: {
                 name: readString(readInt(off+4)+0),
@@ -44,7 +44,7 @@ export async function loadSsbp(file) {
         }), readShort(16), 28),
         animationPacks: arrayOf(readShort(30), (offPack) => Object({
             name: readString(offPack),
-            parts: arrayOf(/*readShort(offPack+12)*/0, (off) => Object({
+            parts: arrayOf(readShort(offPack+12), (off) => Object({
                 name: readString(off),
                 index: readShort(off+4),
                 parentIndex: readShort(off+6),
@@ -58,7 +58,7 @@ export async function loadSsbp(file) {
             }), readUInt(offPack+4), 28),
             animations: arrayOf(readShort(offPack+14), (off) => Object({
                 name: readString(off),
-                initialDatas: arrayOf(/*readShort(offPack+12)*/0, (off) => Object({
+                initialDatas: arrayOf(readShort(offPack+12), (off) => Object({
                     index: readShort(off),
                     _padding1: readShort(off+2),
                     flags: readInt(off+4),
@@ -80,7 +80,6 @@ export async function loadSsbp(file) {
                     const readU8 = () => {const v=reader.getUint8(off);off+=1;return v};
                     const readS16 = () => {const v=readShort(off);off+=2;return v};
                     const readU16 = () => {const v=readUShort(off);off+=2;return v};
-                    const readS32 = () => {const v=readInt(off);off+=4;return v};
                     const readU32 = () => {const v=readUInt(off);off+=4;return v};
                     const readF32 = () => {const v=readFloat(off);off+=4;return v};
                     const read2U16 = () => {const v=readVec2(off);off+=4;return v};

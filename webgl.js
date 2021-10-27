@@ -2,9 +2,18 @@ import vertexCode from './vertexShader.js';
 import fragmentCode from './fragmentShader.js';
 
 let gl;
+const textures = {};
 export const quad = {};
 
 export function clear() { gl.clear(gl.COLOR_BUFFER_BIT); }
+export function setBlending(type) {
+    if (type == 0)
+        gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    else if (type == 2)
+        gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    else
+        console.error('Unsupported blending');
+}
 
 export function initialize(canvas) {
     gl = canvas.getContext("webgl2");
@@ -77,16 +86,26 @@ export function initialize(canvas) {
     };
 }
 
-export function loadTexture(path) {
+let baseDir = ""
+export function setTextureBaseDir(dir) { baseDir = dir; }
+export async function getTexture(textureData) {
+    if (textureData.name in textures)
+        return textures[textureData.name];
+    else
+        return loadTexture(textureData);
+}
+
+async function loadTexture(textureData) {
     const texture = {
-        path: path,
         id: gl.createTexture(),
         width: 0,
         height: 0,
         loaded: false
     };
-    gl.bindTexture(gl.TEXTURE_2D, texture.id);
+    textures[textureData.name] = texture;
 
+    gl.bindTexture(gl.TEXTURE_2D, texture.id);
+    //TODO: use textureData.wrapMode and textureData.filterMode
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
@@ -104,6 +123,27 @@ export function loadTexture(path) {
     };
     image.onerror = function(ev, source, line, col, err) { console.error(ev, source, line, col, err) }
     image.crossOrigin = "anonymous";
-    image.src = path;
+    console.log(textureData.path)
+    image.src = await getImagePath(baseDir, textureData.path);
     return texture;
-};
+}
+
+function getImagePath(basedir, path) {
+    return new Promise(resolve => {;
+        const input = document.createElement("input");
+        input.type = "file";
+        input.id = "input" + path;
+        input.accept = ".png,.webp";
+        input.onchange = () => {
+            if (input.files.length > 0) {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    document.getElementById("miniunit").removeChild(input);
+                    resolve(reader.result);
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        };
+        document.getElementById("miniunit").appendChild(input);
+    });
+}
