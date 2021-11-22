@@ -8,7 +8,7 @@ ASsbpViewer::ASsbpViewer()
 {
     background = nullptr;
     glfwGetFramebufferSize(SsbpResource::window, &width, &height);
-    mover = glm::vec3(0, -0.75, 0);
+    mover = glm::vec3(0, -0.5, 0);
     scaler = glm::vec3(2.f / width, 2.f / height, 1);
     setViewMatrix();
     setBackgroundType(Fit);
