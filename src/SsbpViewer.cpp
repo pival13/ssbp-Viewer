@@ -86,13 +86,13 @@ void SsbpViewer::handleArguments(int argc, char **argv)
 {
     std::string args;
     for (int i = 1; i < argc; ++i)
-        args += std::string(" ") + (argv[i][0] != '-' ? "\"" : "") + std::regex_replace(argv[i],std::regex("\""),"\\\"") + (argv[i][0] != '-' ? "\"" : "");
+        args += " " + std::regex_replace(argv[i], std::regex(" "), "\\ ");
     handleArguments(args);
 }
 
 void SsbpViewer::handleArguments(std::string args)
 {
-    #define stringPattern R"#((?:"((?:[^\\"]|\\"|\\)*)"|(\S+)))#"
+    #define stringPattern R"(((?:[^\s\\]|\\\s|\\)+))"
     #define argPattern(smallArg, longArg, expected) std::regex("^\\s*(?:-" smallArg "\\s+|--" longArg "(?:=\\s*|\\s+))" expected, std::regex_constants::icase)
     std::smatch m;
     while (!std::regex_match(args, std::regex("^\\s*$")))
@@ -152,22 +152,14 @@ void SsbpViewer::handleArguments(std::string args)
 
     if (!_ssbp) {
         std::cout << "Drag an ssbp file here then press enter.\n";
-        while (true) {
-            std::string s; std::cin >> s;
-            if (std::cin.eof()) {
-                glfwSetWindowShouldClose(SsbpResource::window, 1);
-                return;
-            }
-            try {
-                _ssbp = &Ssbp::create(s);
-                break;
-            } catch (const std::invalid_argument &e) {
-                std::cerr << "Failed to read SSBP file: " << s << std::endl;
-            }
-        }
-        play(_ssbp->animePacks.front().name, _ssbp->animePacks.front().animations.front().name, false);
-    }
-    glfwShowWindow(SsbpResource::window);
+        std::string s;
+        std::getline(std::cin, s);
+        if (std::cin.eof())
+            glfwSetWindowShouldClose(SsbpResource::window, 1);
+        else
+            handleArguments(s);
+    } else
+        glfwShowWindow(SsbpResource::window);
 }
 
 void SsbpViewer::argumentReplace(const std::string &arg)
