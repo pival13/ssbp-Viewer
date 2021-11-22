@@ -94,7 +94,7 @@ Both `SsbpPlayer` and `SsbpSaver` support the same arguments, which produce the 
 | `-p <posX>x<posY>{px/%}` | `--position=<posX>x<posY>{px/%}` | Set the initial position of the pivot point of the animation.<br>One of `px` or `%` must be specified. The point `0x0` correspond to the left bottom corner. Defaults to `50x25%`.<br>Must be specify after any `-w` and `-h`.
 |||
 | `-bg <background image>` | `--background=<background image>` | Path to the background image to be used. Must be specify before any of the upcoming options, or they will be lost.
-| `-f`<br>`-fh`<br>`-fw`<br>`-s`<br>`-o`<br><br><br> | `--fit`<br>`--fitHeight`<br>`--fitWidth`<br>`--stretch`<br>`--original`<br>`--scale=<coef>`, `--scale=<coeffX>x<coeffY>`<br>`--size=<sizeX>x<sizeY>` | Set the behaviour of the background image.<br>`o`/`original` keep the initial size of the background.<br>`f`/`fit` stretch the image to fully fit on the windows.<br>`fh`/`fitHeight` and `fw`/`fitWidth` scale the image to fully covered respectively the height and width of the windows.<br>`s`/`strecth` use either `fitHeight` or `fitWidth` according to the size of the windows.<br>`scale` scale the background by `coeffX` on X and `coeffY` on Y, or `coeff` for both X and Y.<br>`size` set the size of the background at `sizeX` x `sizeY` px.<br>Defaults to `fit` with SsbpPlayer and `original` with SsbpSaver.
+| `-f`<br>`-fh`<br>`-fw`<br>`-s`<br>`-o`<br><br><br> | `--fit`<br>`--fitHeight`<br>`--fitWidth`<br>`--stretch`<br>`--original`<br>`--scale=<coef>`, `--scale=<coeffX>x<coeffY>`<br>`--size=<sizeX>x<sizeY>` | Set the behaviour of the background image.<br>`o`/`original` keep the initial size of the background.<br>`f`/`fit` stretch the image to fully fit on the windows.<br>`fh`/`fitHeight` and `fw`/`fitWidth` scale the image to fully covered respectively the height and width of the windows.<br>`s`/`stretch` use either `fitHeight` or `fitWidth` depending on the size of the windows.<br>`scale` scale the background by `coeffX` on X and `coeffY` on Y, or `coeff` for both X and Y.<br>`size` set the size of the background at `sizeX` x `sizeY` px.<br>Defaults to `fit` with SsbpPlayer and `original` with SsbpSaver.
 |  | `--shift=<shiftX>x<shiftY>{px/%}` | Shift the background by `shiftX` pixel/percent on the X axis, and `shiftY` on the Y axis. Positive `shiftX` move the background to the right, while positive `shiftY` move to the top.
 
 It is also possible to override some parts using on the following options:
@@ -108,19 +108,18 @@ Note that it is currently not possible to override a texture from a sub SSBP.
 
 ```bash
 # Basic command, Windows
-bin\ssbpPlayer.exe images\ch00_00_Eclat_X_Avatar00_blow\ch00_00_Eclat_X_Avatar00_blow.ssbp
+bin\SsbpPlayer.exe images\ch00_00_Eclat_X_Avatar00_blow\ch00_00_Eclat_X_Avatar00_blow.ssbp
 
 # Weapon overload, Linux
-# Bind option is split on first and last colon (:), enabling the use of Windows absolute path
-# No spaces must be present around colon, unlike here
-bin/ssbpPlayer \
+# No spaces must be present around commas, unlike here
+bin/SsbpPlayer \
     ./FehAssets/Common/Unit/ch00_03_Anna_F_Normal/ch00_03_Anna_F_Normal.ssbp \
     ~ \
         Wep_BaseR,\
         ./FehAssets/Common/Wep/wep_ax009.ssbp,\
         wep_ax009/Wep_Normal
 
-bin/ssbpPlayer \
+bin/SsbpPlayer \
     ./FehAssets/Common/Unit/ch00_03_Anna_F_Normal/ch00_03_Anna_F_Normal.ssbp \
     ~ \
         wep_ax,\
@@ -129,10 +128,11 @@ bin/ssbpPlayer \
 # Archer example, Windows
 # Archer's weapon are splitted as bow (wep_bw*) and arrow (wep_ar*)
 # Each of these must be set to the correct hand
-bin\ssbpPlayer.exe
-  C:\{...}\FehAssets\Common\Unit\ch01_28_Kleine_F_Normal\ch01_28_Kleine_F_Normal.ssbp
-  ~Wep_BaseL:C:\{...}\FehAssets\Common\Wep\wep_bw053_up.ssbp:wep_bw053_up/Wep_Normal
-  ~Wep_BaseR:C:\{...}\FehAssets\Common\Wep\wep_ar006_up.ssbp:wep_ar006_up/Wep_Normal
+# Adding a backslash (\) at the end of a line will read the next line as well (SsbpPlayer only)
+bin\SsbpPlayer.exe \
+  C:\{...}\FehAssets\Common\Unit\ch01_28_Kleine_F_Normal\ch01_28_Kleine_F_Normal.ssbp \
+  ~Wep_BaseL,C:\{...}\FehAssets\Common\Wep\wep_bw053_up.ssbp,wep_bw053_up/Wep_Normal \
+  ~Wep_BaseR,C:\{...}\FehAssets\Common\Wep\wep_ar006_up.ssbp,wep_ar006_up/Wep_Normal
 ```
 
 ## TODO

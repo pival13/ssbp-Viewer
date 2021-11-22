@@ -155,8 +155,8 @@ void SsbpSaver::handleArguments(std::string args)
             shiftBackground({std::stod(m[1]), std::stod(m[2])}, m[3] == "%");
         } else if (matchArg("p", "position", "(-?\\d+(?:\\.\\d+)?)x(-?\\d+(?:\\.\\d+)?)(px|%)")) {
             mover = glm::vec3{
-                std::stod(m[1]) * (m[3] == "%" ? width / 50.f : 2.f / width) - 1,
-                std::stod(m[2]) * (m[3] == "%" ? height / 50.f : 2.f / height) - 1,
+                std::stod(m[1]) / (m[3] == "%" ? 100 : width) * 2 - 1,
+                std::stod(m[2]) / (m[3] == "%" ? 100 : height) * 2 - 1,
                 0
             };
             setViewMatrix();
