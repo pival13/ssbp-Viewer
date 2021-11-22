@@ -11,6 +11,8 @@ class SsbpViewer : public ASsbpViewer {
 
     private:
         void handleArguments(int argc, char **argv);
+        void handleArguments(std::string args);
+        void handleArgumentsRuntime();
 
         void resizeCallback(int w, int h);
         void scrollCallback(double y);

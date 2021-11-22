@@ -52,22 +52,22 @@ void SsbpViewer::run()
     }
 }
 
-#define matchArg(smallArg, longArg, expected) \
-    (std::regex_match(argv[n], m, std::regex("--" longArg "=" expected, std::regex_constants::icase)) || \
-    (n+1 < argc && \
-        std::regex_match(argv[n], std::regex(smallArg[0] ? "-" smallArg "|--" longArg : "--" longArg, std::regex_constants::icase)) && \
-        std::regex_match(argv[n+1], m, std::regex(expected, std::regex_constants::icase)) && (++n||true)))
-#define matchPrefix(prefix, expected) \
-    (std::regex_match(argv[n], m, std::regex(prefix expected, std::regex_constants::icase)) || \
-    (n+1 < argc && \
-        std::regex_match(argv[n], std::regex(prefix, std::regex_constants::icase)) && \
-        std::regex_match(argv[n+1], m, std::regex(expected, std::regex_constants::icase)) && (++n||true)))
-#define matchUniqArg(smallArg, longArg) \
-    std::regex_match(argv[n], m, std::regex("-" smallArg "|--" longArg, std::regex_constants::icase))
 void SsbpViewer::handleArguments(int argc, char **argv)
 {
-    std::cmatch m;
-    for (int n = 1; n < argc; ++n)
+    std::string args;
+    for (int i = 1; i < argc; ++i)
+        args += " " + std::regex_replace(argv[i], std::regex(" "), "\\ ");
+    handleArguments(args);
+}
+
+#define stringPattern(except) "((?:[^\\s\\\\" except "]|\\\\\\s|\\\\)+)"
+#define matchArg(smallArg, longArg, expected) std::regex_search(args, m, std::regex(smallArg[0] ? "^\\s*(?:-" smallArg "\\s*|--" longArg "(?:=\\s*|\\s+))" expected : "^\\s*--" longArg "(?:=\\s*|\\s+)" expected, std::regex_constants::icase))
+#define matchUniqArg(smallArg, longArg) std::regex_search(args, m, std::regex("^\\s*(?:-" smallArg "|--" longArg ")\\b", std::regex_constants::icase))
+#define matchPrefix(prefix, expected) std::regex_search(args, m, std::regex("^\\s*" prefix "\\s*" expected, std::regex_constants::icase))
+void SsbpViewer::handleArguments(std::string args)
+{
+    std::smatch m;
+    while (!std::regex_match(args, std::regex("\\s*"))) {
         if        (matchArg("w", "width", "(\\d+)")) {
             width = std::stol(m[1]);
             glfwSetWindowSize(SsbpResource::window, width, height);
@@ -80,7 +80,7 @@ void SsbpViewer::handleArguments(int argc, char **argv)
             glViewport(0, 0, width, height);
             scaler = glm::vec3(2.f / width, 2.f / height, 1);
             setViewMatrix();
-        } else if (matchArg("bg", "background", "(.+)")) {
+        } else if (matchArg("bg", "background", stringPattern(""))) {
             SsbpResource::addTexture("","",m[1]);
             background = &SsbpResource::getTexture("","",m[1]);
         } else if (matchUniqArg("f", "fit")) {
@@ -106,8 +106,7 @@ void SsbpViewer::handleArguments(int argc, char **argv)
                 0
             };
             setViewMatrix();
-        } else if (matchPrefix("~", "([^,]+),([^,]+)(?:,(.+))?")) {
-            if (!_ssbp) continue;
+        } else if (matchPrefix("~", stringPattern(",") "," stringPattern(",") "(?:," stringPattern("") ")?")) {
             if (!m[3].matched)
                 replace(m[1].str(), m[2].str());
             else
@@ -115,35 +114,39 @@ void SsbpViewer::handleArguments(int argc, char **argv)
         //} else if (matchPrefix("+", "([^,]+),([^,]+),([^,]+),(\\d+),(\\d+),(\\d+),(\\d+),(\\d+)")) {
         //    // Add arg
         //    // parentName,newName,texturePath,posX,posY,rotate,scaleX,scaleY
-        } else if (std::regex_match(argv[n], m, std::regex(".+\\.ssbp"))) {
+        } else if (std::regex_search(args, m, std::regex(stringPattern(""))) && std::regex_match(m[1].str(), std::regex(".+\\.ssbp"))) {
             try {
-                _ssbp = &Ssbp::create(argv[n]);
+                _ssbp = &Ssbp::create(m[1]);
+                play(_ssbp->animePacks.front().name, _ssbp->animePacks.front().animations.front().name);
             } catch (const std::invalid_argument &e) {
-                std::cerr << "Invalid SSBP file: " << argv[n] << std::endl;
-                continue;
+                std::cerr << "Invalid SSBP file: " << m[1] << std::endl;
             }
-            play(_ssbp->animePacks.front().name, _ssbp->animePacks.front().animations.front().name, false);
-        } else
-            std::cerr << "Invalid argument \"" << argv[n] << "\"" << std::endl;
-
-    if (!_ssbp) {
-        std::cout << "Drag an ssbp file here then press enter.\n";
-        while (true) {
-            std::string s; std::cin >> s;
-            if (std::cin.eof()) {
-                glfwSetWindowShouldClose(SsbpResource::window, 1);
-                return;
-            }
-            try {
-                _ssbp = &Ssbp::create(s);
-                break;
-            } catch (const std::invalid_argument &e) {
-                std::cerr << "Failed to read SSBP file: " << s << std::endl;
-            }
+        } else {
+            std::regex_search(args, m, std::regex(stringPattern("")));
+            std::cerr << "Invalid argument \"" << std::regex_replace(m[1].str(),std::regex(R"(\\(\s))"),"$1") << "\"" << std::endl;
         }
-        play(_ssbp->animePacks.front().name, _ssbp->animePacks.front().animations.front().name, false);
+        args = m.suffix();
     }
-    glfwShowWindow(SsbpResource::window);
+
+    if (!_ssbp)
+        handleArgumentsRuntime();
+    else
+        glfwShowWindow(SsbpResource::window);
+}
+
+void SsbpViewer::handleArgumentsRuntime()
+{
+    std::cout << "Drag an ssbp file here then press enter.\n";
+    std::string s;
+    while (s.empty() || (s[s.length()-1] == '\\' && (s.length() < 2 || s[s.length()-2] != '\\'))) {
+        std::string ss; std::getline(std::cin, ss);
+        if (std::cin.eof()) {
+            glfwSetWindowShouldClose(SsbpResource::window, 1);
+            return;
+        }
+        s += ' ' + ss;
+    }
+    handleArguments(s);
 }
 
 void SsbpViewer::handleEvents()
