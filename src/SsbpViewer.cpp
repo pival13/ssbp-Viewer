@@ -118,6 +118,7 @@ void SsbpViewer::handleArguments(std::string args)
             try {
                 _ssbp = &Ssbp::create(m[1]);
                 play(_ssbp->animePacks.front().name, _ssbp->animePacks.front().animations.front().name);
+                std::cout << getFullAnimeName() << std::endl;
             } catch (const std::invalid_argument &e) {
                 std::cerr << "Invalid SSBP file: " << m[1] << std::endl;
             }
@@ -196,6 +197,7 @@ void SsbpViewer::keyCallback(int key, int scancode, int action, int modifier)
         } else {
             play(_animpack->name, _animation[1].name, loop);
         }
+        std::cout << getFullAnimeName() << std::endl;
     } else if ((key == GLFW_KEY_DOWN || key == GLFW_KEY_S) && action == GLFW_PRESS) {
         if (_animation == _animpack->animations.data()) {
             const AnimePack &pack = _animpack == _ssbp->animePacks.data() ? _ssbp->animePacks.back() : _animpack[-1];
@@ -203,6 +205,7 @@ void SsbpViewer::keyCallback(int key, int scancode, int action, int modifier)
         } else {
             play(_animpack->name, _animation[-1].name, loop);
         }
+        std::cout << getFullAnimeName() << std::endl;
     } else if ((key == GLFW_KEY_RIGHT || key == GLFW_KEY_D) && (action == GLFW_PRESS || action == GLFW_REPEAT)) {
         pause = true;
         size_t frame = getFrame();
