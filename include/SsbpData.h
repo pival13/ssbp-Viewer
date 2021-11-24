@@ -155,3 +155,8 @@ struct FrameData {
     std::optional<bool>             instancePingpong;
     std::optional<bool>             instanceIndependent;
 };
+
+struct LabelData {
+    string_t    label;
+    int32_t     frame;
+};

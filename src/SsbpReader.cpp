@@ -54,6 +54,8 @@ Ssbp::Ssbp(const std::string &path)
                 part._anime = this;
         }
     }
+    //if (ssbp.effectFileSize != 0)
+    //    _path += "";
 }
 
 Ssbp &Ssbp::operator=(Ssbp &&r)
@@ -119,8 +121,47 @@ Cell::Cell(uint8_t *data, const CellData &ref)
     std::memcpy(&pivot, &ref.pivot, sizeof(ref.pivot));
 }
 
-template<typename T>
-std::function<T()> readT(uint8_t *&data) { return [&data]() { T n = *reinterpret_cast<T*>(data); data += sizeof(T); return n; }; }
+FrameData readFrameData(uint8_t *&frameData);
+
+Animation::Animation(uint8_t *data, const AnimeData &ref, int nbParts)
+{
+    InitData *initDatas = reinterpret_cast<InitData*>(data + ref.initDataArray);
+    offset_t *frameDatas = reinterpret_cast<offset_t*>(data + ref.frameDataIndexArray);
+    offset_t *labelDatas = reinterpret_cast<offset_t*>(data + ref.labelDataIndexArray);
+
+    name = ref.name ? (char*)data + ref.name : "";
+    fps = ref.fps;
+    std::memcpy(&canvasSize, &ref.canvasSize, sizeof(ref.canvasSize));
+    initialParts.clear();
+    if (nbParts > 0) {
+        initialParts.resize(nbParts);
+        for (size_t i = 0; i < nbParts; ++i)
+            std::memcpy(&initialParts.at(i), initDatas+i, sizeof(*initDatas));
+    }
+
+    partsPerFrames.clear();
+    partsPerFrames.resize(ref.nbFrame);
+    for (size_t frame = 0; frame < ref.nbFrame; ++frame) {
+        partsPerFrames.at(frame).reserve(nbParts);
+        uint8_t *frameData = data + frameDatas[frame];
+        for (size_t i = 0; i < nbParts; ++i)
+            partsPerFrames.at(frame).push_back(readFrameData(frameData));
+    }
+
+    labels.clear();
+    for (int16_t i = 0; i != ref.labelSize; i++) {
+        LabelData *labelData = reinterpret_cast<LabelData*>(data + labelDatas[i]);
+        labels.emplace(labelData->frame, labelData->label ? (char*)data + labelData->label : "");
+    }
+
+    if (ref.userDataIndexArray != 0)
+        name += "";
+}
+
+
+
+
+
 
 enum {
     PART_FLAG_INVISIBLE         = 1 << 0, 
@@ -178,95 +219,77 @@ enum {
     INSTANCE_LOOP_FLAG_INDEPENDENT = 1 << 3,
 } instanceFlags;
 
-Animation::Animation(uint8_t *data, const AnimeData &ref, int nbParts)
+template<typename T> 
+static std::function<T()> readT(uint8_t *&data) { return [&data]() { T n = *reinterpret_cast<T*>(data); data += sizeof(T); return n; }; }
+
+static FrameData readFrameData(uint8_t *&frameData)
 {
-    InitData *initDatas = reinterpret_cast<InitData*>(data + ref.initDataArray);
-    offset_t *frameDatas = reinterpret_cast<offset_t*>(data + ref.frameDataIndexArray);
+    auto readS16 = readT<int16_t>(frameData);
+    auto readS32 = readT<int32_t>(frameData);
+    auto readU8 = readT<uint8_t>(frameData);
+    auto readU16 = readT<uint16_t>(frameData);
+    auto readU32 = readT<uint32_t>(frameData);
+    auto readFloat = readT<float>(frameData);
+    auto readVec2 = readT<vec2T_t<int16_t>>(frameData);
+    auto readColor = readT<color_t>(frameData);
 
-    name = ref.name ? (char*)data + ref.name : "";
-    fps = ref.fps;
-    std::memcpy(&canvasSize, &ref.canvasSize, sizeof(ref.canvasSize));
-    initialParts.clear();
-    if (nbParts > 0) {
-        initialParts.resize(nbParts);
-        for (size_t i = 0; i < nbParts; ++i)
-            std::memcpy(&initialParts.at(i), initDatas+i, sizeof(*initDatas));
+    FrameData part;
+    part.index = readS16();
+    part.flags = readU32();
+    part.invisible = part.flags & PART_FLAG_INVISIBLE;
+    part.flipX = part.flags & PART_FLAG_FLIP_H;
+    part.flipY = part.flags & PART_FLAG_FLIP_V;
+    if (part.flags & PART_FLAG_CELL_INDEX) part.cellIndex = readS16();
+    if (part.flags & PART_FLAG_POSITION_X) part.pos.x = readS16();
+    if (part.flags & PART_FLAG_POSITION_Y) part.pos.y = readS16();
+    if (part.flags & PART_FLAG_POSITION_Z) part.pos.z = readS16();
+    if (part.flags & PART_FLAG_PIVOT_X) part.pivot.x = readFloat();
+    if (part.flags & PART_FLAG_PIVOT_Y) part.pivot.y = readFloat();
+    if (part.flags & PART_FLAG_ROTATION_X) part.rotation.x = readFloat();
+    if (part.flags & PART_FLAG_ROTATION_Y) part.rotation.y = readFloat();
+    if (part.flags & PART_FLAG_ROTATION_Z) part.rotation.z = readFloat();
+    if (part.flags & PART_FLAG_SCALE_X) part.scale.x = readFloat();
+    if (part.flags & PART_FLAG_SCALE_Y) part.scale.y = readFloat();
+    if (part.flags & PART_FLAG_OPACITY) part.opacity = readU16();
+    if (part.flags & PART_FLAG_SIZE_X) part.size.x = readFloat();
+    if (part.flags & PART_FLAG_SIZE_Y) part.size.y = readFloat();
+    if (part.flags & PART_FLAG_U_MOVE) part.textureShift.x = readFloat();
+    if (part.flags & PART_FLAG_V_MOVE) part.textureShift.y = readFloat();
+    if (part.flags & PART_FLAG_UV_ROTATION) part.textureRotation = readFloat();
+    if (part.flags & PART_FLAG_U_SCALE) part.textureScale.x = readFloat();
+    if (part.flags & PART_FLAG_V_SCALE) part.textureScale.y = readFloat();
+    if (part.flags & PART_FLAG_BOUNDINGRADIUS) part._boundingRadius = readFloat();
+    if (part.flags & PART_FLAG_VERTEX_TRANSFORM) {
+        uint16_t flag = readU16();
+        if (flag & VERTEX_FLAG_LT) part.vertexTransformTL = readVec2();
+        if (flag & VERTEX_FLAG_RT) part.vertexTransformTR = readVec2();
+        if (flag & VERTEX_FLAG_LB) part.vertexTransformBL = readVec2();
+        if (flag & VERTEX_FLAG_RB) part.vertexTransformBR = readVec2();
     }
-
-    partsPerFrames.clear();
-    partsPerFrames.resize(ref.nbFrame);
-    for (size_t frame = 0; frame < ref.nbFrame; ++frame) {
-        uint8_t *frameData = data + frameDatas[frame];
-        auto readS16 = readT<int16_t>(frameData);
-        auto readS32 = readT<int32_t>(frameData);
-        auto readU8 = readT<uint8_t>(frameData);
-        auto readU16 = readT<uint16_t>(frameData);
-        auto readU32 = readT<uint32_t>(frameData);
-        auto readFloat = readT<float>(frameData);
-        auto readVec2 = readT<vec2T_t<int16_t>>(frameData);
-        auto readColor = readT<color_t>(frameData);
-
-        partsPerFrames.at(frame).reserve(nbParts);
-        for (size_t i = 0; i < nbParts; ++i) {
-            FrameData part;
-            part.index = readS16();
-            part.flags = readU32();
-            part.invisible = part.flags & PART_FLAG_INVISIBLE;
-            part.flipX = part.flags & PART_FLAG_FLIP_H;
-            part.flipY = part.flags & PART_FLAG_FLIP_V;
-            if (part.flags & PART_FLAG_CELL_INDEX) part.cellIndex = readS16();
-            if (part.flags & PART_FLAG_POSITION_X) part.pos.x = readS16();
-            if (part.flags & PART_FLAG_POSITION_Y) part.pos.y = readS16();
-            if (part.flags & PART_FLAG_POSITION_Z) part.pos.z = readS16();
-            if (part.flags & PART_FLAG_PIVOT_X) part.pivot.x = readFloat();
-            if (part.flags & PART_FLAG_PIVOT_Y) part.pivot.y = readFloat();
-            if (part.flags & PART_FLAG_ROTATION_X) part.rotation.x = readFloat();
-            if (part.flags & PART_FLAG_ROTATION_Y) part.rotation.y = readFloat();
-            if (part.flags & PART_FLAG_ROTATION_Z) part.rotation.z = readFloat();
-            if (part.flags & PART_FLAG_SCALE_X) part.scale.x = readFloat();
-            if (part.flags & PART_FLAG_SCALE_Y) part.scale.y = readFloat();
-            if (part.flags & PART_FLAG_OPACITY) part.opacity = readU16();
-            if (part.flags & PART_FLAG_SIZE_X) part.size.x = readFloat();
-            if (part.flags & PART_FLAG_SIZE_Y) part.size.y = readFloat();
-            if (part.flags & PART_FLAG_U_MOVE) part.textureShift.x = readFloat();
-            if (part.flags & PART_FLAG_V_MOVE) part.textureShift.y = readFloat();
-            if (part.flags & PART_FLAG_UV_ROTATION) part.textureRotation = readFloat();
-            if (part.flags & PART_FLAG_U_SCALE) part.textureScale.x = readFloat();
-            if (part.flags & PART_FLAG_V_SCALE) part.textureScale.y = readFloat();
-            if (part.flags & PART_FLAG_BOUNDINGRADIUS) part._boundingRadius = readFloat();
-            if (part.flags & PART_FLAG_VERTEX_TRANSFORM) {
-                uint16_t flag = readU16();
-                if (flag & VERTEX_FLAG_LT) part.vertexTransformTL = readVec2();
-                if (flag & VERTEX_FLAG_RT) part.vertexTransformTR = readVec2();
-                if (flag & VERTEX_FLAG_LB) part.vertexTransformBL = readVec2();
-                if (flag & VERTEX_FLAG_RB) part.vertexTransformBR = readVec2();
-            }
-            if (part.flags & PART_FLAG_COLOR_BLEND) {
-                part.colorBlend = (BlendType)readU8();
-                uint8_t flag = readU8();
-                if (flag & VERTEX_FLAG_ONE) {
-                    part.blendRate = readFloat();
-                    part.vertexColorTL = part.vertexColorTR = part.vertexColorBL = part.vertexColorBR = readColor();
-                } else {
-                    if (flag & VERTEX_FLAG_LT) throw std::logic_error("Unsupported flag");
-                    if (flag & VERTEX_FLAG_LB) throw std::logic_error("Unsupported flag");
-                    if (flag & VERTEX_FLAG_RT) throw std::logic_error("Unsupported flag");
-                    if (flag & VERTEX_FLAG_RB) throw std::logic_error("Unsupported flag");
-                }
-            }
-            if (part.flags & PART_FLAG_INSTANCE_KEYFRAME) part.instanceKeyframe = readS16();
-            if (part.flags & PART_FLAG_INSTANCE_START) part.instanceStart = readS16();
-            if (part.flags & PART_FLAG_INSTANCE_END) part.instanceEnd = readS16();
-            if (part.flags & PART_FLAG_INSTANCE_SPEED) part.instanceSpeed = readFloat();
-            if (part.flags & PART_FLAG_INSTANCE_LOOP) part.instanceNbLoop = readS16();
-            if (part.flags & PART_FLAG_INSTANCE_LOOP_FLG) {
-                int flag = readS16();
-                part.instanceInfinity = flag & INSTANCE_LOOP_FLAG_INFINITY;
-                part.instanceReverse = flag & INSTANCE_LOOP_FLAG_REVERSE;
-                part.instancePingpong = flag & INSTANCE_LOOP_FLAG_PINGPONG;
-                part.instanceIndependent = flag & INSTANCE_LOOP_FLAG_INDEPENDENT;
-            }
-            partsPerFrames.at(frame).push_back(part);
+    if (part.flags & PART_FLAG_COLOR_BLEND) {
+        part.colorBlend = (BlendType)readU8();
+        uint8_t flag = readU8();
+        if (flag & VERTEX_FLAG_ONE) {
+            part.blendRate = readFloat();
+            part.vertexColorTL = part.vertexColorTR = part.vertexColorBL = part.vertexColorBR = readColor();
+        } else {
+            if (flag & VERTEX_FLAG_LT) throw std::logic_error("Unsupported flag");
+            if (flag & VERTEX_FLAG_LB) throw std::logic_error("Unsupported flag");
+            if (flag & VERTEX_FLAG_RT) throw std::logic_error("Unsupported flag");
+            if (flag & VERTEX_FLAG_RB) throw std::logic_error("Unsupported flag");
         }
     }
+    if (part.flags & PART_FLAG_INSTANCE_KEYFRAME) part.instanceKeyframe = readS16();
+    if (part.flags & PART_FLAG_INSTANCE_START) part.instanceStart = readS16();
+    if (part.flags & PART_FLAG_INSTANCE_END) part.instanceEnd = readS16();
+    if (part.flags & PART_FLAG_INSTANCE_SPEED) part.instanceSpeed = readFloat();
+    if (part.flags & PART_FLAG_INSTANCE_LOOP) part.instanceNbLoop = readS16();
+    if (part.flags & PART_FLAG_INSTANCE_LOOP_FLG) {
+        int flag = readS16();
+        part.instanceInfinity = flag & INSTANCE_LOOP_FLAG_INFINITY;
+        part.instanceReverse = flag & INSTANCE_LOOP_FLAG_REVERSE;
+        part.instancePingpong = flag & INSTANCE_LOOP_FLAG_PINGPONG;
+        part.instanceIndependent = flag & INSTANCE_LOOP_FLAG_INDEPENDENT;
+    }
+    return part;
 }

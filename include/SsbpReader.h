@@ -3,6 +3,7 @@
 #include <string>
 #include <filesystem>
 #include <vector>
+#include <map>
 
 #include "ssbpData.h"
 
@@ -44,13 +45,13 @@ class AnimePack {
 class Animation {
     public:
         Animation(uint8_t *data, const AnimeData &ref, int nbParts);
-    
+
     public:
         std::string name;
         std::vector<InitData> initialParts;
         std::vector<std::vector<FrameData>> partsPerFrames;
         //std::vector<UserData>
-        //std::vector<Label>
+        std::map<int,std::string> labels;// Labels per frame
         int fps;
         vec2T_t<uint32_t> canvasSize;
 };
