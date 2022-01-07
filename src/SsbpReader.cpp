@@ -75,7 +75,7 @@ AnimePack::AnimePack(uint8_t *data, const AnimePackData &ref)
 {
     PartData *partDatas = reinterpret_cast<PartData*>(data + ref.partDataArray);
     AnimeData *animeDatas = reinterpret_cast<AnimeData*>(data + ref.animeDataArray);
-    
+
     name = ref.name ? (char*)data + ref.name : "";
     parts.clear();
     if (ref.partSize > 0) {
@@ -164,18 +164,18 @@ Animation::Animation(uint8_t *data, const AnimeData &ref, int nbParts)
 
 
 enum {
-    PART_FLAG_INVISIBLE         = 1 << 0, 
-    PART_FLAG_FLIP_H            = 1 << 1, 
-    PART_FLAG_FLIP_V            = 1 << 2, 
+    PART_FLAG_INVISIBLE         = 1 << 0,
+    PART_FLAG_FLIP_H            = 1 << 1,
+    PART_FLAG_FLIP_V            = 1 << 2,
 
     // optional parameter flags
-    PART_FLAG_CELL_INDEX        = 1 << 3, 
-    PART_FLAG_POSITION_X        = 1 << 4, 
-    PART_FLAG_POSITION_Y        = 1 << 5, 
-    PART_FLAG_POSITION_Z        = 1 << 6, 
-    PART_FLAG_PIVOT_X           = 1 << 7, 
-    PART_FLAG_PIVOT_Y           = 1 << 8, 
-    PART_FLAG_ROTATION_X         = 1 << 9, 
+    PART_FLAG_CELL_INDEX        = 1 << 3,
+    PART_FLAG_POSITION_X        = 1 << 4,
+    PART_FLAG_POSITION_Y        = 1 << 5,
+    PART_FLAG_POSITION_Z        = 1 << 6,
+    PART_FLAG_PIVOT_X           = 1 << 7,
+    PART_FLAG_PIVOT_Y           = 1 << 8,
+    PART_FLAG_ROTATION_X         = 1 << 9,
     PART_FLAG_ROTATION_Y         = 1 << 10,
     PART_FLAG_ROTATION_Z         = 1 << 11,
     PART_FLAG_SCALE_X           = 1 << 12,
@@ -219,7 +219,7 @@ enum {
     INSTANCE_LOOP_FLAG_INDEPENDENT = 1 << 3,
 } instanceFlags;
 
-template<typename T> 
+template<typename T>
 static std::function<T()> readT(uint8_t *&data) { return [&data]() { T n = *reinterpret_cast<T*>(data); data += sizeof(T); return n; }; }
 
 static FrameData readFrameData(uint8_t *&frameData)

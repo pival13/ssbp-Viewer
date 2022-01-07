@@ -11,7 +11,7 @@ class SsbpPlayer {
         SsbpPlayer(Ssbp &ssbp);
         ~SsbpPlayer();
         SsbpPlayer &operator=(Ssbp &ssbp);
-    
+
     public:
         void play(const std::string &pack, const std::string &anime, bool loop=true, int startFrame=0, int endFrame=-1);
         void play(const std::string &anime, bool loop=true, int startFrame=0, int endFrame=-1);
@@ -48,7 +48,7 @@ class SsbpPlayer {
         Animation *_animation = nullptr;
         float _t;
         std::map<size_t, SsbpPlayer> _partsAnime;
-    
+
     private:
         std::vector<glm::mat4> _matrices;
 };

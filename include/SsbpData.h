@@ -28,7 +28,7 @@ enum BlendType : uint8_t {
     Mix,
     Mul,
     Add,
-    Sub 
+    Sub
 };
 
 struct SsbpData {

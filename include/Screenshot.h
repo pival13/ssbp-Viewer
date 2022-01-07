@@ -24,8 +24,8 @@ class Saver {
         Magick::Image screen(glm::ivec2 size={0,0}) const;
         Magick::Geometry bounds(const Magick::Image &image) const;
         Magick::Geometry bounds(const std::vector<Magick::Image> &image) const;
-        Magick::Geometry bounds(const std::vector<Magick::Geometry> &image) const;
-    
+        Magick::Geometry bounds(const std::vector<Magick::Geometry> &image, const Magick::Geometry &maxSize) const;
+
     public:
         void save(const std::string &name, const Magick::Image &image, const Magick::Geometry &bound="0x0+0+0");
         void save(const std::string &name, const std::vector<Magick::Image> &images, const Magick::Geometry &bound="-1x-1+0+0", LoopState looping=LoopState::Loop);

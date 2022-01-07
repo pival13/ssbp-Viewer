@@ -113,7 +113,7 @@ void SsbpPlayer::update()
             if (partData.instanceReverse) player.reverse = *partData.instanceReverse;
         }
     }
-    
+
 }
 
 void SsbpPlayer::draw(float posX, float posY, float rotation, float scaleX, float scaleY)
@@ -155,7 +155,7 @@ void SsbpPlayer::drawCell(const Cell &cell, const glm::mat4 &mat, const FrameDat
     const Texture &texture = SsbpResource::getTexture(_ssbp->_path, _ssbp->imageBaseDir, cell.texturePath);
     if (!texture.loaded) return;
     SsbpResource::quad.set("u_Texture", texture);
-    
+
     BlendType blending = data.colorBlend.value_or(part.blend);
     if (blending != Mix) {
         SsbpResource::quad.set("u_BlendType", blending);

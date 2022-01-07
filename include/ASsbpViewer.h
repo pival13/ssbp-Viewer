@@ -16,7 +16,7 @@ class ASsbpViewer : protected SsbpPlayer {
     protected:
         inline void setViewMatrix() { SsbpResource::quad.set("u_View", glm::scale(glm::translate(glm::mat4(1), mover), scaler)); }
 
-        void render(bool renderBackground=true);
+        void render(bool renderBackground=true, bool swapBuffer=true);
 
         void replace(const std::string &name, const std::filesystem::path &texture);
         void replace(const std::string &name, const std::filesystem::path &ssbp, const std::string &animation);

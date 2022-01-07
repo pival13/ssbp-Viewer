@@ -85,7 +85,7 @@ void SsbpSaver::saveAnimations()
                     if (std::find(savedSprite.begin(), savedSprite.end(), anim.name) != savedSprite.end())
                         saver.save("Screenshots/"+_ssbp->_path.stem().string()+"/"+anim.name+"_"+std::to_string(savedFrame)+".png", imagesRGBA.at(savedFrame), bounds.at(savedFrame));
 #               endif
-                saver.save("Screenshots/"+_ssbp->_path.stem().string()+"/"+anim.name+".gif", imagesRGB, saver.bounds(bounds), isLooping ? Saver::Loop : Saver::SlowLoop);
+                saver.save("Screenshots/"+_ssbp->_path.stem().string()+"/"+anim.name+".gif", imagesRGB, saver.bounds(bounds, imagesRGB.front().size()), isLooping ? Saver::Loop : Saver::SlowLoop);
 #           elif (defined(SAVE_SPRITE))
                 setFrame(savedFrame);
                 glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);

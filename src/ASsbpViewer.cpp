@@ -20,7 +20,7 @@ ASsbpViewer::~ASsbpViewer()
     glfwTerminate();
 }
 
-void ASsbpViewer::render(bool useBackground)
+void ASsbpViewer::render(bool useBackground, bool swap)
 {
     glClear(GL_COLOR_BUFFER_BIT);
 
@@ -52,8 +52,9 @@ void ASsbpViewer::render(bool useBackground)
     }
 
     SsbpPlayer::draw();
-    
-    glfwSwapBuffers(SsbpResource::window);
+
+    if (swap)
+        glfwSwapBuffers(SsbpResource::window);
 }
 
 void ASsbpViewer::replace(const std::string &name, const std::filesystem::path &texture)

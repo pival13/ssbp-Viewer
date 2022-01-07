@@ -35,7 +35,7 @@ class Ssbp {
 class AnimePack {
     public:
         AnimePack(uint8_t *data, const AnimePackData &ref);
-    
+
     public:
         std::string name;
         std::vector<Part> parts;
