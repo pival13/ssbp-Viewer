@@ -60,7 +60,7 @@ void SsbpViewer::run()
     }
 }
 
-void SsbpViewer::render(bool useBackground)
+void SsbpViewer::render(bool useBackground, bool swap)
 {
     glClear(GL_COLOR_BUFFER_BIT);
 
@@ -79,7 +79,8 @@ void SsbpViewer::render(bool useBackground)
 
     SsbpPlayer::draw();
     
-    glfwSwapBuffers(SsbpResource::window);
+    if (swap)
+        glfwSwapBuffers(SsbpResource::window);
 }
 
 void SsbpViewer::handleArguments(int argc, char **argv)
@@ -316,8 +317,9 @@ void SsbpViewer::keyCallback(int key, int scancode, int action, int modifier)
         std::vector<Magick::Image> imgs;
         for (size_t i = 0; i < getMaxFrame(); ++i) {
             setFrame(i);
-            render();
+            render(true, false);
             imgs.emplace_back(saver.screen());
+            glfwSwapBuffers(SsbpResource::window);
             imgs.at(i).animationDelay(100 * (i+1) / getFps() - 100 * i / getFps());
         }
         saver.save("Screenshots/" + getFileName() + "/" + getAnimeName() + ".gif", imgs, saver.bounds(imgs), loop ? Saver::Loop : Saver::SlowLoop);

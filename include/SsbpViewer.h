@@ -24,7 +24,7 @@ class SsbpViewer : protected SsbpPlayer {
         void scrollCallback(double y);
         void keyCallback(int key, int scancode, int action, int modifier);
         void handleEvents();
-        void render(bool renderBackground=true);
+        void render(bool renderBackground=true, bool swapBuffer=true);
 
     private:
         glm::vec3 mover;

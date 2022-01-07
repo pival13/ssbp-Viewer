@@ -23,7 +23,7 @@ class Saver {
         Magick::Image screen() const;
         Magick::Geometry bounds(const Magick::Image &image) const;
         Magick::Geometry bounds(const std::vector<Magick::Image> &image) const;
-        Magick::Geometry bounds(const std::vector<Magick::Geometry> &image) const;
+        Magick::Geometry bounds(const std::vector<Magick::Geometry> &image, const Magick::Geometry &imageSize="0x0") const;
     
     public:
         void save(const std::string &name, const Magick::Image &image, const Magick::Geometry &bound="0x0+0+0");

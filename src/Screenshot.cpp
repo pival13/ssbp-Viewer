@@ -3,7 +3,7 @@
 
 #include <GLFW/glfw3.h>
 #include <iostream>
-#include <glm/ext/matrix_uint2x2_sized.hpp>
+#include <glm/ext/matrix_int2x2_sized.hpp>
 
 using namespace Magick;
 
@@ -102,15 +102,17 @@ Geometry Saver::bounds(const Image &image) const
     );
 }
 
-Geometry Saver::bounds(const std::vector<Geometry> &bounds) const
+Geometry Saver::bounds(const std::vector<Geometry> &bounds, const Geometry &ref) const
 {
-    glm::u64mat2x2 size = glm::u64mat2x2(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0, 0);
+    glm::i64mat2x2 size = glm::i64mat2x2(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0, 0);
     for (const auto &bound : bounds) {
-        if (size[0].x > (size_t)bound.xOff())        size[0].x = bound.xOff();
-        if (size[1].x < bound.xOff()+bound.width())  size[1].x = bound.xOff()+bound.width();
-        if (size[0].y > (size_t)bound.yOff())        size[0].y = bound.yOff();
-        if (size[1].y < bound.yOff()+bound.height()) size[1].y = bound.yOff()+bound.height();
+        if (size[0].x > bound.xOff())                        size[0].x = bound.xOff();
+        if (size[1].x < bound.xOff()+(ssize_t)bound.width()) size[1].x = bound.xOff()+bound.width();
+        if (size[0].y > bound.yOff())                        size[0].y = bound.yOff();
+        if (size[1].y < bound.yOff()+(ssize_t)bound.height())size[1].y = bound.yOff()+bound.height();
     }
+    if (size[1].x - size[0].x >= (ssize_t)ref.width() && size[1].y - size[0].y >= (ssize_t)ref.height())
+        return ref;
     size_t extraW = 10 + (size[1].x - size[0].x) / 10 * 10 - (size[1].x - size[0].x);
     size_t extraH = 10 + (size[1].y - size[0].y) / 10 * 10 - (size[1].y - size[0].y);
     return Geometry(
@@ -125,7 +127,7 @@ Geometry Saver::bounds(const std::vector<Image> &images) const
 {
     std::vector<Geometry> boxes;
     for (const Image &img : images) boxes.push_back(bounds(img));
-    return bounds(boxes);
+    return bounds(boxes, images.front().size());
 }
 /*
 static Magick::Image getSprite(bool useBackground)
