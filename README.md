@@ -54,19 +54,20 @@ SsbpPlayer also support the following options at start time:
 <!--* `-p arg`, `--position=arg`: Set the initial position of the element to draw. The position must be of format: `posX,posY`, where `posX` and `posY` can be any real, optionnaly followed by `px` or `%`. 0 is meant for the bottom and left side, while 1 is used for the top and right side. Defaults to `0.5,0.25`.-->
 
 Once an animation file have been loaded several interactions are available.
-* Change frame: right and left arrows, or A and D keys.
-* Change the animation played: up and down arrows, or the W and S keys.
-* Pause/Resume the animation: space bar.
-* Enable/Disable looping animation: L key.
-* Change the animation speed: 1 to slow down and 3 to speed up. 2 to reset.
-* Vertically flip the animation: X key.
-* Reset scale and position: C key.
-* Zoom and move animation: mouse scrolling and draging.
-* Save animation: Q for a single frame, E for the whole animation.
-* Show help: H key.
+* Change frame: right <code>$\rightarrow$</code> and left <code>$\leftarrow$</code> arrows, or `A` and `D` keys.
+* Change the animation played: up <code>$\uparrow$</code> and down <code>$\downarrow$</code> arrows, or the `W` and `S` keys.
+* Pause/Resume the animation: `Space bar`.
+* Enable/Disable looping animation: `L` key.
+* Change the animation speed: `1` to slow down and `3` to speed up. `2` to reset.
+* Vertically flip the animation: `X` key.
+* Zoom and move animation: mouse scrolling <code>$\downdownarrows$</code> and draging <code>$\mapsto$</code>.
+* Reset scale and position: `C` key.
+* Save animation: `Q` for a single frame, `E` for the whole animation.
+* Show help: `H` key.
 
-When saving an animation, the image is cropped to keep only the animation. Moreover, single frame are saved as PNG without background, while animation are saved as GIF with background, if available. The scale is kept and the position may lead to cropped image.<br>
-Screenshot are always saved on a `Screenshot` folder under the current working directory.
+By default, single frames are saved as PNG without background, while animations are saved as GIF with the set–or white–background. However, if the `Control` key is held down when pressing the corresponding key, this behaviour change. Single frames are then saved with the set background–or a white background if unavailable. Animations, on the other hand, are saved as multiple PNGs with the set background, or without background if none was set.<br>
+When saving images, whether animations or frames, these are cropped to keep only the animation. However, having the `Caps Lock` key on disable the crop completely, resulting on an image of the size of the window. Note that this may slow down the creation of the file.<br>
+Screenshot are always saved on a `"/Screenshot/"` folder under the current working directory.
 
 ### Example
 

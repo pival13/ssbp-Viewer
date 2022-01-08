@@ -307,14 +307,19 @@ void SsbpViewer::keyCallback(int key, int scancode, int action, int modifier)
     } else if (key == GLFW_KEY_Q && action == GLFW_PRESS) {
         float colors[4];
         glGetFloatv(GL_COLOR_CLEAR_VALUE, colors);
-        glClearColor(0,0,0,0);
-        glClear(GL_COLOR_BUFFER_BIT);
+        if ((modifier & GLFW_MOD_CONTROL) == 0)
+            glClearColor(0,0,0,0);
+        render((modifier & GLFW_MOD_CONTROL) != 0, false);
         glClearColor(colors[0], colors[1], colors[2], colors[3]);
-        draw();
         Magick::Image img = saver.screen();
-        saver.save("Screenshots/" + getFileName() + "/" + getAnimeName() + "_" + std::to_string(getFrame()) + ".png", img, saver.bounds(img));
+        saver.save("Screenshots/" + getFileName() + "/" + getAnimeName() + "_" + std::to_string(getFrame()) + ".png",
+                   img, (modifier & GLFW_MOD_CAPS_LOCK) ? img.size() : saver.bounds(img));
     } else if (key == GLFW_KEY_E && action == GLFW_PRESS) {
         std::vector<Magick::Image> imgs;
+        float colors[4];
+        glGetFloatv(GL_COLOR_CLEAR_VALUE, colors);
+        if (modifier & GLFW_MOD_CONTROL)
+            glClearColor(0,0,0,0);
         for (size_t i = 0; i < getMaxFrame(); ++i) {
             setFrame(i);
             render(true, false);
@@ -322,6 +327,9 @@ void SsbpViewer::keyCallback(int key, int scancode, int action, int modifier)
             glfwSwapBuffers(SsbpResource::window);
             imgs.at(i).animationDelay(100 * (i+1) / getFps() - 100 * i / getFps());
         }
-        saver.save("Screenshots/" + getFileName() + "/" + getAnimeName() + ".gif", imgs, saver.bounds(imgs), loop ? Saver::Loop : Saver::SlowLoop);
+        glClearColor(colors[0], colors[1], colors[2], colors[3]);
+        saver.save("Screenshots/" + getFileName() + "/" + getAnimeName() + ((modifier & GLFW_MOD_CONTROL) ? "_%02d.png" : ".gif"),
+                   imgs, (modifier & GLFW_MOD_CAPS_LOCK) ? imgs.front().size() : saver.bounds(imgs),
+                   loop ? Saver::Loop : Saver::SlowLoop);
     }
 }

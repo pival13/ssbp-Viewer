@@ -104,7 +104,7 @@ Geometry Saver::bounds(const Image &image) const
 
 Geometry Saver::bounds(const std::vector<Geometry> &bounds, const Geometry &ref) const
 {
-    glm::i64mat2x2 size = glm::i64mat2x2(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0, 0);
+    glm::i64mat2x2 size = glm::i64mat2x2(0x7FFFFFFFFFFFFFFF, 0x7FFFFFFFFFFFFFFF, 0, 0);
     for (const auto &bound : bounds) {
         if (size[0].x > bound.xOff())                        size[0].x = bound.xOff();
         if (size[1].x < bound.xOff()+(ssize_t)bound.width()) size[1].x = bound.xOff()+bound.width();
