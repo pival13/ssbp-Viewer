@@ -23,7 +23,8 @@ static GLFWwindow *initOpenGL()
     glfwMakeContextCurrent(window);
     glfwSetWindowSizeLimits(window, 300, 300, GLFW_DONT_CARE, GLFW_DONT_CARE);
     glfwSwapInterval(1);
-    glfwSetInputMode(window, GLFW_STICKY_MOUSE_BUTTONS, GL_TRUE);
+    glfwSetInputMode(window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
+    glfwSetInputMode(window, GLFW_LOCK_KEY_MODS, GLFW_TRUE);
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
         throw std::runtime_error("Failed to initialize GLAD");

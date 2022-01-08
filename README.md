@@ -46,31 +46,33 @@ SsbpPlayer is a small program that recreate a SSBP animation when given the corr
 Loading an animation can either be done at start time, when launching the program from a terminal, or at runtime, after launching the program, whenever you are asked to enter an ssbp file. On both cases, the same arguments can be specify, following the same rules. More informations about those arguments are available on the [Common arguments](#common-arguments) section.
 
 Once an animation file have been loaded, several interactions are available.
-* Pausing / Resuming the animation by pressing the `space` bar.
-* Changing the current frame by pressing the `left` and `right` arrows, or `A` and `D` keys. Note that this will paused the animation.
-* Changing the current animation by pressing the `up` and `down` arrows, or the `W` and `S` keys. Note that this will resume the animation if it has been paused.
+* Pausing / Resuming the animation by pressing the `Space bar`.
+* Changing the current frame by pressing the left <code>$\leftarrow$</code> and right <code>$\rightarrow$</code> arrows, or `A` and `D` keys. Note that this will paused the animation.
+* Changing the current animation by pressing the up <code>$\uparrow$</code> and down <code>$\downarrow$</code> arrows, or the `W` and `S` keys. Note that this will resume the animation if it has been paused.
 * Enabling / Disabling looping animation by pressing the `L` key.
 * Changing the animation speed by pressing the `1`, `2` and `3` keys.
-* * 1 will reduce the speed by 0.1, up to -2.
-* * 2 will reset the speed at 1.
-* * 3 will increase the speed by 0.1, up to 2.
+  * `1` will reduce the speed by 0.1, up to -2.
+  * `2` will reset the speed at 1.
+  * `3` will increase the speed by 0.1, up to 2.
 * Vertically flipping the animation by pressing the `X` key. The animation will be mirrored relatively to the Y axis, centered on its pivot point.
-* Moving the animation by dragging it with your cursor.
-* Zooming and dezooming by scrolling or dragging with the right button along the Y axis.
+* Moving the animation by dragging it <code>$\mapsto$</code> with your cursor.
+* Zooming and dezooming by scrolling <code>$\downdownarrows$</code> or dragging with the right button along the Y axis.
 * Resetting the position and zoom level of the animation by pressing the `C` key.
 * Saving the current frame by pressing the `Q` key.
 * Saving the current animation by pressing the `E` key. Note that this will change the currently played frame.
 * Showing the help by pressing the `H` key.
 
 Note the following about saved images:
-* Single frame are always saved as PNG without background, even if a background is specify.
+* Single frame are saved as PNG without background, even if a background is specify.
+  * Holding the `Control` key when pressing `Q` will save the background as well, using a white background by default.
 * Whole animations are always saved as GIF with background, using a white background by default.
-* Single frames are cropped in order to keep only the animation.
-* Whole animations are of the size of the windows. The bigger the windows, the longer it will take to saved the animation.
+  * Holding the `Control` key when pressing `E` will save the animation as several PNGs instead of a GIF. Moreover, the default background become transparent.
+* Images are cropped in order to keep only the animation.
+  * The crop can be disabled by having the `Caps Lock` on. The whole windows is then saved.
 * A delay may occured between the moment an animation is played, and the moment the file is created. A message will appeared whenever the process is over.
 * Whole animations are always looped. However when the looping option is disable (with the L key), the first frame is displayed for half a second, while the last frame is kept a whole second, resulting on a effective break.
 * Animations are saved as appeared on the windows. If it is cropped, moved or scaled, so will it be the saved file.
-* Every file are saved on the `Screenshot` folder under the current working directory, creating it if necessary. Look at the ingame message for the subfolder and file's names.
+* Every file are saved on the `"/Screenshot/"` folder under the current working directory, creating it if necessary. Look at the ingame message for the subfolder and file's names.
 
 ### SsbpSaver
 
