@@ -96,8 +96,8 @@ bin/ssbpPlayer \
 # Each of these must be set to the correct hand
 bin\ssbpPlayer.exe
   C:\{...}\FehAssets\Common\Unit\ch01_28_Kleine_F_Normal\ch01_28_Kleine_F_Normal.ssbp
-  ~Wep_BaseL:C:\{...}\FehAssets\Common\Wep\wep_bw053_up.ssbp:wep_bw053_up/Wep_Normal
-  ~Wep_BaseR:C:\{...}\FehAssets\Common\Wep\wep_ar006_up.ssbp:wep_ar006_up/Wep_Normal
+  ~Wep_BaseL,C:\{...}\FehAssets\Common\Wep\wep_bw053_up.ssbp,wep_bw053_up/Wep_Normal
+  ~Wep_BaseR,C:\{...}\FehAssets\Common\Wep\wep_ar006_up.ssbp,wep_ar006_up/Wep_Normal
 ```
 
 ## TODO
