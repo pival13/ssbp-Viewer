@@ -2,9 +2,9 @@
 #include <regex>
 
 #include <glad/glad.h>
-#include <GLFW/glfw3.h>
 
 #include "SsbpSaver.h"
+#include "tools/GLTexture.h"
 
 SsbpSaver::SsbpSaver()
 {
@@ -70,11 +70,11 @@ void SsbpSaver::saveAnimations()
                     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
                     render(false);
                     glReadBuffer(GL_COLOR_ATTACHMENT0);
-                    imagesRGBA.emplace_back(saver.screen({width, height}));
-                    bounds.emplace_back(saver.bounds(imagesRGBA.at(frame)));
+                    imagesRGBA.emplace_back(saver->screen({width, height}));
+                    bounds.emplace_back(saver->bounds(imagesRGBA.at(frame)));
                     if (background && background->loaded) {
                         render(true);
-                        imagesRGB.emplace_back(saver.screen({width, height}));
+                        imagesRGB.emplace_back(saver->screen({width, height}));
                     } else
                         imagesRGB.emplace_back(imagesRGBA.at(frame));
                     imagesRGB.at(frame).animationDelay(100 * (frame+1) / getFps() - 100 * frame / getFps());
@@ -83,16 +83,16 @@ void SsbpSaver::saveAnimations()
                 }
 #               if (defined(SAVE_SPRITE))
                     if (std::find(savedSprite.begin(), savedSprite.end(), anim.name) != savedSprite.end())
-                        saver.save("Screenshots/"+_ssbp->_path.stem().string()+"/"+anim.name+"_"+std::to_string(savedFrame)+".png", imagesRGBA.at(savedFrame), bounds.at(savedFrame));
+                        saver->save("Screenshots/"+_ssbp->_path.stem().string()+"/"+anim.name+"_"+std::to_string(savedFrame)+".png", imagesRGBA.at(savedFrame), bounds.at(savedFrame));
 #               endif
-                saver.save("Screenshots/"+_ssbp->_path.stem().string()+"/"+anim.name+".gif", imagesRGB, saver.bounds(bounds, imagesRGB.front().size()), isLooping ? Saver::Loop : Saver::SlowLoop);
+                saver->save("Screenshots/"+_ssbp->_path.stem().string()+"/"+anim.name+".gif", imagesRGB, saver->bounds(bounds, imagesRGB.front().size()), isLooping ? Saver::Loop : Saver::SlowLoop);
 #           elif (defined(SAVE_SPRITE))
                 setFrame(savedFrame);
                 glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
                 render(false);
                 glReadBuffer(GL_COLOR_ATTACHMENT0);
-                Magick::Image img = saver.screen({width, height});
-                saver.save("Screenshots/"+_ssbp->_path.stem().string()+"/"+anim.name+"_"+std::to_string(savedFrame)+".png", img, saver.bounds(img));
+                Magick::Image img = saver->screen({width, height});
+                saver->save("Screenshots/"+_ssbp->_path.stem().string()+"/"+anim.name+"_"+std::to_string(savedFrame)+".png", img, saver->bounds(img));
 #           endif
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
@@ -107,8 +107,8 @@ void SsbpSaver::saveAnimations()
         glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
         render(false);
         glReadBuffer(GL_COLOR_ATTACHMENT0);
-        Magick::Image img = saver.screen({width, height});
-        saver.save("Screenshots/"+_ssbp->_path.stem().string()+"/Idle_no_wep.png", img, saver.bounds(img));
+        Magick::Image img = saver->screen({width, height});
+        saver->save("Screenshots/"+_ssbp->_path.stem().string()+"/Idle_no_wep.png", img, saver->bounds(img));
 #   endif
 }
 
@@ -135,8 +135,8 @@ void SsbpSaver::handleArguments(std::string args)
             scaler = glm::vec3(2.f / width, 2.f / height, 1);
             setViewMatrix();
         } else if (matchArg("bg", "background", stringPattern(""))) {
-            SsbpResource::addTexture("","",m[1]);
-            background = &SsbpResource::getTexture("","",m[1]);
+            addTexture("","",m[1]);
+            background = &getTexture("","",m[1]);
         } else if (matchUniqArg("f", "fit")) {
             setBackgroundType(Fit);
         } else if (matchUniqArg("fh","fitHeight")) {

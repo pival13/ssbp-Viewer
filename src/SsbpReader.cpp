@@ -1,20 +1,21 @@
-#include "ssbpReader.h"
-#include "ssbpResource.h"
+#include "SsbpReader.h"
+#include "ASsbpViewer.h"
 
 #include <fstream>
 #include <functional>
+#include <cstring>
 
 Ssbp &Ssbp::create(const std::string &path)
 {
-    auto it = SsbpResource::_ssbps.find(path);
+    auto it = ASsbpViewer::_ssbps.find(path);
     //if (it != SsbpResource::_ssbps.end())
     //    return it->second;
-    return (SsbpResource::_ssbps[path] = Ssbp(path));
+    return (ASsbpViewer::_ssbps[path] = Ssbp(path));
 }
 
 void Ssbp::release(const Ssbp &ssbp)
 {
-    SsbpResource::_ssbps.erase(ssbp._path.string());
+    ASsbpViewer::_ssbps.erase(ssbp._path.string());
 }
 
 Ssbp::Ssbp(const std::string &path)
@@ -121,7 +122,7 @@ Cell::Cell(uint8_t *data, const CellData &ref)
     std::memcpy(&pivot, &ref.pivot, sizeof(ref.pivot));
 }
 
-FrameData readFrameData(uint8_t *&frameData);
+static FrameData readFrameData(uint8_t *&frameData);
 
 Animation::Animation(uint8_t *data, const AnimeData &ref, int nbParts)
 {

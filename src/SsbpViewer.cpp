@@ -3,8 +3,7 @@
 
 #include <GLFW/glfw3.h>
 
-#include "ssbpViewer.h"
-#include "ssbpResource.h"
+#include "SsbpViewer.h"
 
 const char *helpString = R"(
 A / D:    Previous / Next frame
@@ -24,9 +23,9 @@ static SsbpViewer *_viewer;
 SsbpViewer::SsbpViewer(int argc, char **argv)
 {
     _viewer = this;
-    glfwSetFramebufferSizeCallback(SsbpResource::window, [](GLFWwindow*, int w, int h) { _viewer->resizeCallback(w,h); });
-    glfwSetScrollCallback(SsbpResource::window, [](GLFWwindow*, double, double scroll) { _viewer->scrollCallback(scroll); });
-    glfwSetKeyCallback(SsbpResource::window, [](GLFWwindow*, int key, int code, int action, int modifier) { _viewer->keyCallback(key, code, action, modifier); });
+    glfwSetFramebufferSizeCallback(window, [](GLFWwindow*, int w, int h) { _viewer->resizeCallback(w,h); });
+    glfwSetScrollCallback(window, [](GLFWwindow*, double, double scroll) { _viewer->scrollCallback(scroll); });
+    glfwSetKeyCallback(window, [](GLFWwindow*, int key, int code, int action, int modifier) { _viewer->keyCallback(key, code, action, modifier); });
 
     handleArguments(argc, argv);
 }
@@ -40,10 +39,10 @@ void SsbpViewer::run()
 {
     std::cout << helpString << std::endl;
     time = glfwGetTime();
-    glfwGetCursorPos(SsbpResource::window, &mouse.x, &mouse.y);
+    glfwGetCursorPos(window, &mouse.x, &mouse.y);
 
     double currentTime;
-    while (!glfwWindowShouldClose(SsbpResource::window)) {
+    while (!glfwWindowShouldClose(window)) {
         currentTime = glfwGetTime();
         update(float(currentTime - time));
         render(true);
@@ -70,19 +69,19 @@ void SsbpViewer::handleArguments(std::string args)
     while (!std::regex_match(args, std::regex("\\s*"))) {
         if        (matchArg("w", "width", "(\\d+)")) {
             width = std::stol(m[1]);
-            glfwSetWindowSize(SsbpResource::window, width, height);
+            glfwSetWindowSize(window, width, height);
             glViewport(0, 0, width, height);
             scaler = glm::vec3(2.f / width, 2.f / height, 1);
             setViewMatrix();
         } else if (matchArg("h", "height", "(\\d+)")) {
             height = std::stol(m[1]);
-            glfwSetWindowSize(SsbpResource::window, width, height);
+            glfwSetWindowSize(window, width, height);
             glViewport(0, 0, width, height);
             scaler = glm::vec3(2.f / width, 2.f / height, 1);
             setViewMatrix();
         } else if (matchArg("bg", "background", stringPattern(""))) {
-            SsbpResource::addTexture("","",m[1]);
-            background = &SsbpResource::getTexture("","",m[1]);
+            addTexture("","",m[1]);
+            background = &getTexture("","",m[1]);
         } else if (matchUniqArg("f", "fit")) {
             setBackgroundType(Fit);
         } else if (matchUniqArg("fh","fitHeight")) {
@@ -132,7 +131,7 @@ void SsbpViewer::handleArguments(std::string args)
     if (!_ssbp)
         handleArgumentsRuntime();
     else
-        glfwShowWindow(SsbpResource::window);
+        glfwShowWindow(window);
 }
 
 void SsbpViewer::handleArgumentsRuntime()
@@ -142,7 +141,7 @@ void SsbpViewer::handleArgumentsRuntime()
     while (s.empty() || (s[s.length()-1] == '\\' && (s.length() < 2 || s[s.length()-2] != '\\'))) {
         std::string ss; std::getline(std::cin, ss);
         if (std::cin.eof()) {
-            glfwSetWindowShouldClose(SsbpResource::window, 1);
+            glfwSetWindowShouldClose(window, 1);
             return;
         }
         if (!s.empty()) s[s.length()-1] = ' ';
@@ -156,9 +155,9 @@ void SsbpViewer::handleEvents()
     glfwPollEvents();
 
     glm::dvec2 pos;
-    glfwGetCursorPos(SsbpResource::window, &pos.x, &pos.y);
-    int left_button = glfwGetMouseButton(SsbpResource::window, GLFW_MOUSE_BUTTON_LEFT);
-    int right_button = glfwGetMouseButton(SsbpResource::window, GLFW_MOUSE_BUTTON_RIGHT);
+    glfwGetCursorPos(window, &pos.x, &pos.y);
+    int left_button = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
+    int right_button = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT);
     if (left_button == GLFW_PRESS) {
         mover += glm::vec3((pos - mouse) / glm::dvec2(width, -height) * 2.0, 0.0f);
         setViewMatrix();
@@ -190,9 +189,14 @@ void SsbpViewer::scrollCallback(double y)
 
 void SsbpViewer::keyCallback(int key, int scancode, int action, int modifier)
 {
-    if (key == GLFW_KEY_H && action == GLFW_PRESS) {
+    switch ((action << 16) | key) {
+    // Help
+    case (GLFW_PRESS<<16) | GLFW_KEY_H:
         std::cout << helpString << std::endl;
-    } else if ((key == GLFW_KEY_UP || key == GLFW_KEY_W) && action == GLFW_PRESS) {
+        break;
+    // Next animation
+    case (GLFW_PRESS<<16) | GLFW_KEY_UP:
+    case (GLFW_PRESS<<16) | GLFW_KEY_W: {
         if (_animation - _animpack->animations.data() == _animpack->animations.size() - 1) {
             const AnimePack &pack = _animpack - _ssbp->animePacks.data() == _ssbp->animePacks.size() - 1 ? _ssbp->animePacks.front() : _animpack[1];
             play(pack.name, pack.animations.front().name, loop);
@@ -200,7 +204,10 @@ void SsbpViewer::keyCallback(int key, int scancode, int action, int modifier)
             play(_animpack->name, _animation[1].name, loop);
         }
         std::cout << getFullAnimeName() << std::endl;
-    } else if ((key == GLFW_KEY_DOWN || key == GLFW_KEY_S) && action == GLFW_PRESS) {
+        break; }
+    // Previous animation
+    case (GLFW_PRESS<<16) | GLFW_KEY_DOWN:
+    case (GLFW_PRESS<<16) | GLFW_KEY_S: {
         if (_animation == _animpack->animations.data()) {
             const AnimePack &pack = _animpack == _ssbp->animePacks.data() ? _ssbp->animePacks.back() : _animpack[-1];
             play(pack.name, pack.animations.back().name, loop);
@@ -208,68 +215,91 @@ void SsbpViewer::keyCallback(int key, int scancode, int action, int modifier)
             play(_animpack->name, _animation[-1].name, loop);
         }
         std::cout << getFullAnimeName() << std::endl;
-    } else if ((key == GLFW_KEY_RIGHT || key == GLFW_KEY_D) && (action == GLFW_PRESS || action == GLFW_REPEAT)) {
+        break; }
+    // Next frame
+    case (GLFW_PRESS<<16) | GLFW_KEY_RIGHT: case (GLFW_REPEAT<<16) | GLFW_KEY_RIGHT:
+    case (GLFW_PRESS<<16) | GLFW_KEY_D:     case (GLFW_REPEAT<<16) | GLFW_KEY_D: {
         pause = true;
         size_t frame = getFrame();
         if (frame < getMaxFrame()-1)
             setFrame(frame+1);
-    } else if ((key == GLFW_KEY_LEFT || key == GLFW_KEY_A) && (action == GLFW_PRESS || action == GLFW_REPEAT)) {
-            pause = true;
-            size_t frame = getFrame();
-            if (frame > 0)
-                setFrame(frame-1);
-    } else if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
+        break; }
+    // Previous frame
+    case (GLFW_PRESS<<16) | GLFW_KEY_LEFT: case (GLFW_REPEAT<<16) | GLFW_KEY_LEFT:
+    case (GLFW_PRESS<<16) | GLFW_KEY_A:    case (GLFW_REPEAT<<16) | GLFW_KEY_A: {
+        pause = true;
+        size_t frame = getFrame();
+        if (frame > 0)
+            setFrame(frame-1);
+        break; }
+    // Pause/Resume
+    case (GLFW_PRESS<<16) | GLFW_KEY_SPACE:
         if (!loop && getFrame() == getMaxFrame()-1) {
             setFrame(0);
             pause = false;
         } else
             pause = !pause;
-    } else if (key == GLFW_KEY_L && action == GLFW_PRESS) {
+        break;
+    // Loop
+    case (GLFW_PRESS<<16) | GLFW_KEY_L:
         loop = !loop;
         pause = !loop && pause;
         std::cout << "Looping " << (loop ? "enabled" : "disabled") << std::endl;
-    } else if (key == GLFW_KEY_1 && (action == GLFW_PRESS || action == GLFW_REPEAT)) {
+        break;
+    // Animation spped
+    case (GLFW_PRESS<<16) | GLFW_KEY_1: case (GLFW_REPEAT<<16) | GLFW_KEY_1:
         speed = std::max(speed - 0.1f, -2.0f);
         std::cout << "Play speed: " << speed << '\n';
-    } else if (key == GLFW_KEY_2 && (action == GLFW_PRESS || action == GLFW_REPEAT)) {
+        break;
+    case (GLFW_PRESS<<16) | GLFW_KEY_2: case (GLFW_REPEAT<<16) | GLFW_KEY_2:
         speed = 1.0f;
         std::cout << "Play speed reset\n";
-    } else if (key == GLFW_KEY_3 && (action == GLFW_PRESS || action == GLFW_REPEAT)) {
+        break;
+    case (GLFW_PRESS<<16) | GLFW_KEY_3: case (GLFW_REPEAT<<16) | GLFW_KEY_3:
         speed = std::min(speed + 0.1f, 2.0f);
         std::cout << "Play speed: " << speed << '\n';
-    } else if (key == GLFW_KEY_C && action == GLFW_PRESS) {
+        break;
+    // Reset
+    case (GLFW_PRESS<<16) | GLFW_KEY_C:
         mover = glm::vec3(0.0f, -0.5f, 0.0f);
         scaler = glm::vec3(2.0f / width, 2.0f / height, 1.0f);
         setViewMatrix();
-    } else if (key == GLFW_KEY_X && action == GLFW_PRESS) {
+        break;
+    // Flip
+    case (GLFW_PRESS<<16) | GLFW_KEY_X:
         scaler.x *= -1.0;
         setViewMatrix();
-    } else if (key == GLFW_KEY_Q && action == GLFW_PRESS) {
+        break;
+    // Save image
+    case (GLFW_PRESS<<16) | GLFW_KEY_Q: {
         float colors[4];
         glGetFloatv(GL_COLOR_CLEAR_VALUE, colors);
         if ((modifier & GLFW_MOD_CONTROL) == 0)
             glClearColor(0,0,0,0);
         render((modifier & GLFW_MOD_CONTROL) != 0, false);
         glClearColor(colors[0], colors[1], colors[2], colors[3]);
-        Magick::Image img = saver.screen();
-        saver.save("Screenshots/" + getFileName() + "/" + getAnimeName() + "_" + std::to_string(getFrame()) + ".png",
-                   img, (modifier & GLFW_MOD_CAPS_LOCK) ? img.size() : saver.bounds(img));
-    } else if (key == GLFW_KEY_E && action == GLFW_PRESS) {
+        Magick::Image img = saver->screen();
+        saver->save("Screenshots/" + getFileName() + "/" + getAnimeName() + "_" + std::to_string(getFrame()) + ".png",
+                   img, (modifier & GLFW_MOD_CAPS_LOCK) ? img.size() : saver->bounds(img));
+        break; }
+    // Save animation
+    case (GLFW_PRESS<<16) | GLFW_KEY_E:
         std::vector<Magick::Image> imgs;
         float colors[4];
         glGetFloatv(GL_COLOR_CLEAR_VALUE, colors);
-        if (modifier & GLFW_MOD_CONTROL)
+        if ((modifier & GLFW_MOD_CONTROL) == 0)
             glClearColor(0,0,0,0);
         for (size_t i = 0; i < getMaxFrame(); ++i) {
             setFrame(i);
             render(true, false);
-            imgs.emplace_back(saver.screen());
-            glfwSwapBuffers(SsbpResource::window);
+            imgs.emplace_back(saver->screen());
+            glfwSwapBuffers(window);
             imgs.at(i).animationDelay(100 * (i+1) / getFps() - 100 * i / getFps());
         }
         glClearColor(colors[0], colors[1], colors[2], colors[3]);
-        saver.save("Screenshots/" + getFileName() + "/" + getAnimeName() + ((modifier & GLFW_MOD_CONTROL) ? "_%02d.png" : ".gif"),
-                   imgs, (modifier & GLFW_MOD_CAPS_LOCK) ? imgs.front().size() : saver.bounds(imgs),
+        saver->save("Screenshots/" + getFileName() + "/" + getAnimeName() + ((modifier & GLFW_MOD_CONTROL) ? "_%02d.png" : ".gif"),
+                   imgs, (modifier & GLFW_MOD_CAPS_LOCK) ? imgs.front().size() : saver->bounds(imgs),
                    loop ? Saver::Loop : Saver::SlowLoop);
+        break;
     }
 }

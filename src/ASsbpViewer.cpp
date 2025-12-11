@@ -1,13 +1,78 @@
 #include <iostream>
 #include <set>
+#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
 #include "ASsbpViewer.h"
+#include "tools/GLQuad.h"
+#include "tools/GLTexture.h"
+
+GLFWwindow *ASsbpViewer::window = nullptr;
+GLQuad *ASsbpViewer::quad = nullptr;
+std::map<std::string, Ssbp> ASsbpViewer::_ssbps;
+std::map<std::string, const GLTexture> ASsbpViewer::_textures;
+
+static GLFWwindow *initWindow(int width=500, int height=500, const char *name="SSBP Viewer")
+{
+    // glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
+    if (!glfwInit())
+        throw std::runtime_error("Failed to init GLFW");
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    // glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+
+    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+    GLFWwindow *window = glfwCreateWindow(width, height, name, nullptr, nullptr);
+    if (window == nullptr)
+        throw std::runtime_error("Failed to create GLFW window");
+    glfwMakeContextCurrent(window);
+    glfwSetWindowSizeLimits(window, 300, 300, GLFW_DONT_CARE, GLFW_DONT_CARE);
+    glfwSwapInterval(1);
+    glfwSetInputMode(window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
+    glfwSetInputMode(window, GLFW_LOCK_KEY_MODS, GLFW_TRUE);
+
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+        throw std::runtime_error("Failed to initialize GLAD");
+    glEnable(GL_BLEND);
+    glClearColor(1,1,1,1);
+
+    return window;
+}
+
+void releaseWindow(GLFWwindow *&window)
+{
+    if (window) glfwDestroyWindow(window);
+    window = nullptr;
+    glfwTerminate();
+}
+
+void ASsbpViewer::addTexture(const std::filesystem::path &ssbpPath, const std::string &imageBaseDir, const std::string &texturePath)
+{
+    std::filesystem::path path = (ssbpPath.parent_path() / imageBaseDir / texturePath).lexically_normal();
+    if (_textures.find(path.string()) != _textures.end())
+        return;
+    _textures.emplace(path.string(), GLTexture(path));
+}
+
+const GLTexture &ASsbpViewer::getTexture(const std::filesystem::path &ssbpPath, const std::string &imageBaseDir, const std::string &texturePath)
+{
+    std::filesystem::path path = (ssbpPath.parent_path() / imageBaseDir / texturePath).lexically_normal();
+    auto it = _textures.find(path.string());
+    if (it == _textures.end())
+        throw std::invalid_argument("Unknow texture " + texturePath);
+    return it->second;
+}
+
 
 ASsbpViewer::ASsbpViewer()
 {
+    window = initWindow();
+    quad = new GLQuad();
+    saver = new Saver();
+
     background = nullptr;
-    glfwGetFramebufferSize(SsbpResource::window, &width, &height);
+    glfwGetFramebufferSize(window, &width, &height);
     mover = glm::vec3(0, -0.5, 0);
     scaler = glm::vec3(2.f / width, 2.f / height, 1);
     setViewMatrix();
@@ -16,8 +81,15 @@ ASsbpViewer::ASsbpViewer()
 
 ASsbpViewer::~ASsbpViewer()
 {
-    SsbpResource::window = nullptr;
-    glfwTerminate();
+    if (quad) delete quad;
+    quad = nullptr;
+    releaseWindow(window);
+    if (saver) delete saver;
+}
+
+void ASsbpViewer::setViewMatrix()
+{
+    quad->set("u_View", glm::scale(glm::translate(glm::mat4(1), mover), scaler));
 }
 
 void ASsbpViewer::render(bool useBackground, bool swap)
@@ -25,7 +97,7 @@ void ASsbpViewer::render(bool useBackground, bool swap)
     glClear(GL_COLOR_BUFFER_BIT);
 
     if (useBackground && background && background->loaded) {
-        SsbpResource::quad.set("u_Texture", *background);
+        quad->set("u_Texture", *background);
         float w, h;
         if (backgroundSize.percent()) {
             w = 1; h = 1;
@@ -43,7 +115,7 @@ void ASsbpViewer::render(bool useBackground, bool swap)
         }
         float x = float(backgroundSize.xOff()) / width;
         float y = float(backgroundSize.yOff()) / height;
-        SsbpResource::quad.draw({
+        quad->draw({
             glm::vec3{(x*2-1 - mover.x) / scaler.x, (y*2+1 - mover.y) / scaler.y, 0},
             glm::vec3{(x*2-1 - mover.x) / scaler.x, ((y-h)*2+1 - mover.y) / scaler.y, 0},
             glm::vec3{((x+w)*2-1 - mover.x) / scaler.x, (y*2+1 - mover.y) / scaler.y, 0},
@@ -54,14 +126,14 @@ void ASsbpViewer::render(bool useBackground, bool swap)
     SsbpPlayer::draw();
 
     if (swap)
-        glfwSwapBuffers(SsbpResource::window);
+        glfwSwapBuffers(window);
 }
 
 void ASsbpViewer::replace(const std::string &name, const std::filesystem::path &texture)
 {
     if (!_ssbp || !_animpack || !_animation) throw std::runtime_error("replace cannot ba called without initializing an animation.");
     std::filesystem::path relativePath = std::filesystem::relative(std::filesystem::absolute(texture), std::filesystem::absolute(_ssbp->_path.parent_path() / _ssbp->imageBaseDir));
-    SsbpResource::addTexture(_ssbp->_path, _ssbp->imageBaseDir, relativePath.string());
+    addTexture(_ssbp->_path, _ssbp->imageBaseDir, relativePath.string());
     bool found = false;
     for (Cell &cell : _ssbp->cells)
         if (cell.textureName == name) {

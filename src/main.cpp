@@ -1,26 +1,36 @@
-#if !defined(SAVE_ANIM) && !defined(SAVE_SPRITE)
-#   include "SsbpViewer.h"
-#else
-#   include "SsbpSaver.h"
-#endif
 
 #include <iostream>
 
+#ifdef _DEBUG
+#  define TRY try
+#  define CATCH catch (const std::exception &e) { std::cerr << e.what() << std::endl; return 1; }
+#else
+#  define TRY
+#  define CATCH
+#endif
+
+#if !defined(SAVE_ANIM) && !defined(SAVE_SPRITE)
+
+#include "SsbpViewer.h"
+
 int main(int n, char **argv)
 {
-#ifndef _DEBUG
-    try {
-#endif
-#if !defined(SAVE_ANIM) && !defined(SAVE_SPRITE)
+    TRY {
         SsbpViewer(n, argv).run();
-#else
-        SsbpSaver().run();
-#endif
-#ifndef _DEBUG
-    } catch (const std::exception &e) {
-        std::cerr << e.what() << std::endl;
-        return 1;
-    }
-#endif
+    } CATCH
     return 0;
 }
+
+#else // defined(SAVE_ANIM) || defined(SAVE_SPRITE)
+
+#include "SsbpSaver.h"
+
+int main(int n, char **argv)
+{
+    TRY {
+        SsbpSaver().run();
+    } CATCH
+    return 0;
+}
+
+#endif

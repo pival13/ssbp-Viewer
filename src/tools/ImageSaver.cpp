@@ -1,26 +1,28 @@
-#include "Screenshot.h"
-#include "ssbpResource.h"
+#include "ImageSaver.h"
+#include "ASsbpViewer.h"
 
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <glm/ext/matrix_int2x2_sized.hpp>
 
-using namespace Magick;
+using Magick::Geometry;
 
 Saver::Saver()
 {
     t = std::thread([this]() {
-        while (SsbpResource::window != nullptr || !_images.empty()) {
+        while (ASsbpViewer::window != nullptr || !_images.empty()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             if (!_images.empty()) {
                 auto &[toSave, name] = _images.front();
                 if (std::holds_alternative<Image>(toSave))
                     std::get<Image>(toSave).write(name);
                 else
-                    writeImages(std::get<std::vector<Image>>(toSave).begin(), std::get<std::vector<Image>>(toSave).end(), name);
+                    writeImages(std::get<Images>(toSave).begin(), std::get<Images>(toSave).end(), name);
                 std::cout << "  > File saved: " << name << std::endl;
-                std::unique_lock lock(_mutex);
-                _images.pop();
+                {
+                    std::lock_guard lock(_mutex);
+                    _images.pop();
+                }
             }
         }
     });
@@ -42,16 +44,17 @@ void Saver::save(const std::string &name, const Image &image, const Geometry &bo
     _images.emplace(std::move(toSave), name);
 }
 
-void Saver::save(const std::string &name, const std::vector<Image> &images, const Geometry &bound, LoopState looping)
+void Saver::save(const std::string &name, const Images &images, const Geometry &bound, LoopState looping)
 {
     std::filesystem::create_directories(std::filesystem::path(name).parent_path());
 
-    std::vector<Image> imgs;
+    Images imgs;
     for (auto &image : images) {
         imgs.push_back(Image(image));
         if (!bound.isValid() || bound.width() == 0 || bound.height() == 0) continue;
         imgs.back().crop(bound);
         imgs.back().page(Geometry(bound.width(), bound.height()));
+        imgs.back().gifDisposeMethod(Magick::BackgroundDispose);
     }
     imgs.front().animationIterations(looping == NoLoop ? 1 : 0);
     if (looping == SlowLoop) {
@@ -63,23 +66,23 @@ void Saver::save(const std::string &name, const std::vector<Image> &images, cons
     _images.emplace(std::move(imgs), name);
 }
 
-Image Saver::screen(glm::ivec2 size) const
+Magick::Image Saver::screen(glm::ivec2 size) const
 {
     static std::vector<uint8_t> buffer;
     if (size.x == 0 || size.y == 0)
-        glfwGetFramebufferSize(SsbpResource::window, &size.x, &size.y);
+        glfwGetFramebufferSize(ASsbpViewer::window, &size.x, &size.y);
     buffer.resize(size.x * size.y * 4);
     glReadPixels(0, 0, size.x, size.y, GL_RGBA, GL_UNSIGNED_BYTE, buffer.data());
 
     // Reverse premultiplied alpha
     for (int i = 0; i != size.x * size.y; ++i) {
         if (buffer[i*4+3] == 0) continue;
-        buffer[i*4] = GLubyte(std::min(int(buffer[i*4] * 0xFF) / buffer[i*4+3], 0xFF));
-        buffer[i*4+1] = GLubyte(std::min(int(buffer[i*4+1] * 0xFF) / buffer[i*4+3], 0xFF));
-        buffer[i*4+2] = GLubyte(std::min(int(buffer[i*4+2] * 0xFF) / buffer[i*4+3], 0xFF));
+        buffer[i*4+0] = GLubyte(std::min(((int)buffer[i*4+0] * 0xFF) / buffer[i*4+3], 0xFF));
+        buffer[i*4+1] = GLubyte(std::min(((int)buffer[i*4+1] * 0xFF) / buffer[i*4+3], 0xFF));
+        buffer[i*4+2] = GLubyte(std::min(((int)buffer[i*4+2] * 0xFF) / buffer[i*4+3], 0xFF));
     }
 
-    Image img = Image(size.x, size.y, "RGBA", CharPixel, buffer.data());
+    Image img = Image(size.x, size.y, "RGBA", Magick::CharPixel, buffer.data());
     img.flip();
     return img;
 }
@@ -104,7 +107,7 @@ Geometry Saver::bounds(const Image &image) const
 
 Geometry Saver::bounds(const std::vector<Geometry> &bounds, const Geometry &ref) const
 {
-    glm::i64mat2x2 size = glm::i64mat2x2(0x7FFFFFFFFFFFFFFF, 0x7FFFFFFFFFFFFFFF, 0, 0);
+    glm::i64mat2x2 size = glm::i64mat2x2(INT64_MAX, INT64_MAX, 0, 0);
     for (const auto &bound : bounds) {
         if (size[0].x > bound.xOff())                         size[0].x = bound.xOff();
         if (size[1].x < bound.xOff()+(ssize_t)bound.width())  size[1].x = bound.xOff()+bound.width();
@@ -123,7 +126,7 @@ Geometry Saver::bounds(const std::vector<Geometry> &bounds, const Geometry &ref)
     );
 }
 
-Geometry Saver::bounds(const std::vector<Image> &images) const
+Geometry Saver::bounds(const Images &images) const
 {
     std::vector<Geometry> boxes;
     for (const Image &img : images) boxes.push_back(bounds(img));

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 
 template<typename T>
 struct vec2T_t { T x; T y; };
@@ -115,7 +116,6 @@ struct InitData {
     float       _boundingRadius;
 };
 
-#include <optional>
 struct FrameData {
     int16_t     index;
     uint32_t    flags;

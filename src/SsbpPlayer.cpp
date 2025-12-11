@@ -1,8 +1,10 @@
-#include "ssbpPlayer.h"
-#include "ssbpResource.h"
+#include "SsbpPlayer.h"
+#include "ASsbpViewer.h"
+#include "tools/GLTexture.h"
+#include "tools/GLQuad.h"
+
 #include <iostream>
 #include <glad/glad.h>
-#include <GLFW/glfw3.h>
 #include <algorithm>
 
 SsbpPlayer::SsbpPlayer(Ssbp &ssbp) : _ssbp(&ssbp) {}
@@ -30,7 +32,7 @@ void SsbpPlayer::play(const std::string &pack, const std::string &name, bool loo
     pingpong = false;
     reverse = false;
     for (const Cell &cell : _ssbp->cells)
-        SsbpResource::addTexture(_ssbp->_path, _ssbp->imageBaseDir, cell.texturePath);
+        ASsbpViewer::addTexture(_ssbp->_path, _ssbp->imageBaseDir, cell.texturePath);
     _partsAnime.clear();
     for (const Part &part : _animpack->parts)
         if (part.type == PartType::Instance) {
@@ -129,9 +131,9 @@ void SsbpPlayer::draw(const glm::mat4 &mat)
     const std::vector<FrameData> &partsData = _animation->partsPerFrames.at(frame);
 
     for (size_t i = 0; i != parts.size(); ++i) {
-        auto &partData = partsData.at(i);
-        auto &initPartData = *std::find_if(initPartsData.begin(), initPartsData.end(), [partData](const InitData &part) {return part.index == partData.index;});
-        auto &matrix = mat * _matrices.at(initPartData.index);
+        const auto &partData = partsData.at(i);
+        const auto &initPartData = *std::find_if(initPartsData.begin(), initPartsData.end(), [partData](const InitData &part) {return part.index == partData.index;});
+        const auto &matrix = mat * _matrices.at(initPartData.index);
 
         if (parts.at(partData.index).type == PartType::Null || partData.invisible || partData.opacity.value_or(initPartData.opacity) == 0) {
             continue;
@@ -152,18 +154,19 @@ void SsbpPlayer::drawCell(const Cell &cell, const glm::mat4 &mat, const FrameDat
 {
     const InitData &initPartData = *std::find_if(_animation->initialParts.begin(), _animation->initialParts.end(), [&data](const InitData &part) {return part.index == data.index;});
     const Part &part = _animpack->parts.at(data.index);
-    const Texture &texture = SsbpResource::getTexture(_ssbp->_path, _ssbp->imageBaseDir, cell.texturePath);
+    const GLTexture &texture = ASsbpViewer::getTexture(_ssbp->_path, _ssbp->imageBaseDir, cell.texturePath);
     if (!texture.loaded) return;
-    SsbpResource::quad.set("u_Texture", texture);
+    ASsbpViewer::quad->set("u_Texture", texture);
 
     BlendType blending = data.colorBlend.value_or(part.blend);
-    if (blending != Mix) {
-        SsbpResource::quad.set("u_BlendType", blending);
-        if (blending == Add)
-            glBlendFuncSeparate(GL_ONE, GL_ONE, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-        else
-            std::cerr << "Unsupported blending on: " << getFullAnimeName() << ", frame " << getFrame() << ", part " << part.name << ": " << blending << std::endl;
-    }
+    ASsbpViewer::quad->set("u_BlendType", blending);
+    // GL_SRC_ALPHA  <==>  Using premultiplied alpha
+    if (blending == Add)
+        glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    else if (blending == Mix)
+        glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    else
+        std::cerr << "Unsupported blending on: " << getFullAnimeName() << ", frame " << getFrame() << ", part " << part.name << ": " << blending << std::endl;
 
     if (data.textureRotation.value_or(initPartData.textureRotation) != 0 ||
         data.textureShift.x.value_or(initPartData.textureShift.x) != 0 ||
@@ -194,10 +197,5 @@ void SsbpPlayer::drawCell(const Cell &cell, const glm::mat4 &mat, const FrameDat
         (data.vertexColorTR ? glm::vec4{data.vertexColorTR->r, data.vertexColorTR->g, data.vertexColorTR->b, data.vertexColorTR->a} : glm::vec4{0xFF,0xFF,0xFF,0xFF}) / float(0xFF) * float(data.opacity.value_or(0xFF)) / float(0xFF),
         (data.vertexColorBR ? glm::vec4{data.vertexColorBR->r, data.vertexColorBR->g, data.vertexColorBR->b, data.vertexColorBR->a} : glm::vec4{0xFF,0xFF,0xFF,0xFF}) / float(0xFF) * float(data.opacity.value_or(0xFF)) / float(0xFF),
     };
-    SsbpResource::quad.draw(vertex, uvs, colors);
-
-    if (blending != Mix) {
-        SsbpResource::quad.set("u_BlendType", Mix);
-        glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-    }
+    ASsbpViewer::quad->draw(vertex, uvs, colors);
 }

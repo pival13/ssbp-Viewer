@@ -1,10 +1,7 @@
 #pragma once
 
 #include "SsbpPlayer.h"
-#include "Screenshot.h"
-#include "SsbpResource.h"
-
-#include <list>
+#include "tools/ImageSaver.h"
 
 class ASsbpViewer : protected SsbpPlayer {
     public:
@@ -14,7 +11,7 @@ class ASsbpViewer : protected SsbpPlayer {
         virtual void run() = 0;
 
     protected:
-        inline void setViewMatrix() { SsbpResource::quad.set("u_View", glm::scale(glm::translate(glm::mat4(1), mover), scaler)); }
+        void setViewMatrix();
 
         void render(bool renderBackground=true, bool swapBuffer=true);
 
@@ -30,8 +27,17 @@ class ASsbpViewer : protected SsbpPlayer {
         glm::vec3 scaler;
         int width, height;
 
-        const Texture *background;
+        const struct GLTexture *background;
         Magick::Geometry backgroundSize;
 
-        Saver saver;
+        Saver *saver;
+
+    public:
+        static void addTexture(const std::filesystem::path &ssbpPath, const std::string &imageBaseDir, const std::string &texturePath);
+        static const GLTexture &getTexture(const std::filesystem::path &ssbpPath, const std::string &imageBaseDir, const std::string &texturePath);
+
+        static struct GLFWwindow *window;
+        static struct GLQuad *quad;
+        static std::map<std::string, struct Ssbp> _ssbps;
+        static std::map<std::string, const GLTexture> _textures;
 };

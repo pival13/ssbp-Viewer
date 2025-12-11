@@ -5,7 +5,7 @@
 #include <vector>
 #include <map>
 
-#include "ssbpData.h"
+#include "SsbpStructures.h"
 
 class Cell;
 class Part;

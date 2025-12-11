@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ssbpReader.h"
+#include "SsbpReader.h"
 #include <map>
 #include <glm/mat4x4.hpp>
 #include <glm/ext.hpp>
